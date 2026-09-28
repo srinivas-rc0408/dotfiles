@@ -1,0 +1,2 @@
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x14c3", ATTR{device}=="0x7961", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="net", DRIVERS=="mt7921e", RUN+="/usr/local/bin/mt7921-nopm"

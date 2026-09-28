@@ -1,0 +1,3 @@
+#!/bin/sh
+[ "$1" = "post" ] && sleep 2 && /usr/local/bin/mt7921-nopm
+exit 0

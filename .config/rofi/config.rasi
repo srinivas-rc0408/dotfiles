@@ -1,0 +1,194 @@
+configuration {
+    drun-use-desktop-cache: true;
+    drun-reload-desktop-cache: false;
+    modi: "drun";
+    show-icons: true;
+    icon-theme: "Papirus-Dark";
+    drun-display-format: "{name}";
+    matching: "fuzzy";
+    sort: true;
+    sorting-method: "fzf";
+    hover-select: true;
+    me-select-entry: "";
+    me-accept-entry: "MousePrimary";
+}
+
+* {
+    glass:   rgba(8, 8, 10, 0.74);
+    card:    rgba(255, 255, 255, 0.03);
+    tile:    rgba(255, 255, 255, 0.035);
+    tilesel: rgba(255, 255, 255, 0.11);
+    line:    rgba(255, 255, 255, 0.10);
+    linesel: rgba(255, 255, 255, 0.36);
+    fg:      #ffffff;
+    dim:     rgba(255, 255, 255, 0.48);
+    font: "JetBrainsMono Nerd Font 11";
+    background-color: transparent;
+    text-color: @fg;
+}
+
+window {
+    location: north;
+    anchor: north;
+    y-offset: 8px;
+    width: 640px;
+    background-color: rgba(0,0,0,0.30);
+    border: 1px;
+    border-color: @line;
+    border-radius: 26px;
+    padding: 18px;
+}
+
+mainbox {
+    orientation: vertical;
+    children: [ box-top, listview, box-bottom ];
+    spacing: 16px;
+}
+
+/* ---------- TOP: bolt button + search ---------- */
+
+box-top {
+    orientation: horizontal;
+    expand: false;
+    children: [ button-bolt, inputbar ];
+    spacing: 10px;
+}
+
+button-bolt {
+    expand: false;
+    str: "ϟ";
+    content: "ϟ";
+    action: "kb-mode-next";
+    font: "DejaVu Sans 17";
+    text-color: #ffffff;
+    background-color: @tile;
+    border: 1px;
+    border-color: @line;
+    border-radius: 14px;
+    padding: 9px 16px;
+    vertical-align: 0.5;
+    horizontal-align: 0.5;
+    cursor: pointer;
+}
+
+inputbar {
+    expand: true;
+    children: [ icon-search, entry, num-filtered-rows ];
+    background-color: @tile;
+    border: 1px;
+    border-color: @line;
+    border-radius: 14px;
+    padding: 12px 16px;
+    spacing: 12px;
+}
+
+icon-search {
+    expand: false;
+    filename: "/home/superior/.config/rofi/search.png";
+    size: 17px;
+    vertical-align: 0.5;
+}
+
+entry {
+    expand: true;
+    placeholder: "Search apps";
+    placeholder-color: @dim;
+    text-color: #ffffff;
+    vertical-align: 0.5;
+    cursor: text;
+}
+
+num-filtered-rows {
+    expand: false;
+    text-color: @dim;
+    font: "JetBrainsMono Nerd Font 9";
+    vertical-align: 0.5;
+}
+
+/* ---------- 3×3 GRID ---------- */
+
+listview {
+    columns: 3;
+    lines: 3;
+    spacing: 10px;
+    fixed-height: true;
+    fixed-columns: true;
+    scrollbar: false;
+    cycle: true;
+    border: 0;
+}
+
+element {
+    orientation: vertical;
+    padding: 18px 10px 14px 10px;
+    spacing: 10px;
+    border: 1px;
+    border-radius: 18px;
+    border-color: transparent;
+    cursor: pointer;
+}
+
+element normal.normal, element alternate.normal, element normal.active, element alternate.active, element normal.urgent, element alternate.urgent {
+    background-color: @tile;
+    text-color: @dim;
+}
+
+element selected.normal, element selected.active, element selected.urgent {
+    background-color: @tilesel;
+    background-image: linear-gradient(to bottom, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+    background-image: linear-gradient(to bottom, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+    border-color: @linesel;
+    text-color: #ffffff;
+}
+
+element-icon {
+    size: 56px;
+    horizontal-align: 0.5;
+    cursor: inherit;
+}
+
+element-text {
+    horizontal-align: 0.5;
+    text-color: inherit;
+    font: "JetBrainsMono Nerd Font 10";
+    cursor: inherit;
+}
+
+/* ---------- HERO CARD ---------- */
+
+box-bottom {
+    orientation: vertical;
+    expand: false;
+    background-color: @card;
+    border: 1px;
+    border-color: @line;
+    border-radius: 20px;
+    padding: 14px 16px 12px 16px;
+    spacing: 6px;
+    children: [ textbox-quote, box-hero, textbox-motto ];
+}
+
+textbox-quote {
+    expand: false;
+    str: "";
+    font: "JetBrainsMono Nerd Font Italic 10";
+    text-color: rgba(255, 255, 255, 0.92);
+    horizontal-align: 0.5;
+}
+
+box-hero {
+    expand: false;
+    padding: 105px 0px;
+    background-image: url("/home/superior/.config/rofi/hero.png", both);
+    children: [ ];
+}
+
+textbox-motto {
+    text-color: rgba(255,255,255,0.85);
+    margin: 6px 0px 0px 0px;
+    expand: false;
+    str: "———  “You can do it”  ———";
+    font: "JetBrainsMono Nerd Font Bold 8";
+    text-color: @dim;
+    horizontal-align: 0.5;
+}

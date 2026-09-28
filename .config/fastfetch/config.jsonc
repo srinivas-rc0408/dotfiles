@@ -1,0 +1,33 @@
+{
+  "logo": { "source": "arch_small", "color": { "1": "white", "2": "white" }, "padding": { "top": 1, "left": 1, "right": 4 } },
+  "display": {
+    "separator": "  ",
+    "color": { "keys": "white", "title": "white", "output": "white" },
+    "key": { "width": 13 }
+  },
+  "modules": [
+    "title",
+    { "type": "custom", "format": "────────── hardware ──────────", "outputColor": "90" },
+    { "type": "host",    "key": "󰌢  host",    "format": "{name}" },
+    { "type": "cpu",     "key": "󰍛  cpu",     "format": "{name} ({cores-logical})" },
+    { "type": "gpu",     "key": "󰢮  gpu",     "format": "{name}" },
+    { "type": "memory",  "key": "󰑭  ram" },
+    { "type": "swap",    "key": "󰓡  swap" },
+    { "type": "disk",    "key": "󰋊  root",    "folders": "/" },
+    { "type": "disk",    "key": "󰋊  home",    "folders": "/home" },
+    { "type": "display", "key": "󰍹  display" },
+    { "type": "battery", "key": "󰁹  battery" },
+    { "type": "custom", "format": "────────── software ──────────", "outputColor": "90" },
+    { "type": "os",       "key": "󰣇  os",     "format": "{name}" },
+    { "type": "kernel",   "key": "  kernel" },
+    { "type": "packages", "key": "󰏖  pkgs" },
+    { "type": "shell",    "key": "  shell" },
+    { "type": "wm",       "key": "  wm" },
+    { "type": "terminal", "key": "  term" },
+    { "type": "custom", "format": "────────── session ───────────", "outputColor": "90" },
+    { "type": "uptime",  "key": "󰅐  uptime" },
+    { "type": "localip", "key": "󰩟  ip" },
+    "break",
+    { "type": "colors", "symbol": "circle", "paddingLeft": 2 }
+  ]
+}

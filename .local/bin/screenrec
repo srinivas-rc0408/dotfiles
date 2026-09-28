@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+if pkill -INT -x wf-recorder; then
+  notify-send "Recording saved" "Videos/Recordings"
+  exit 0
+fi
+geo=$(slurp) || exit 0
+mkdir -p "$HOME/Videos/Recordings"
+f="$HOME/Videos/Recordings/$(date +%F_%H-%M-%S).mp4"
+notify-send "Recording started" "Press Shift+PrtSc again to stop"
+wf-recorder -g "$geo" -f "$f"

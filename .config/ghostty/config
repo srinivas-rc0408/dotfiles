@@ -1,0 +1,16 @@
+font-family = JetBrainsMono Nerd Font
+font-size = 12
+font-thicken = true
+background = #0c0c0e
+foreground = #e8e8e8
+background-opacity = 0.72
+background-blur = true
+gtk-titlebar = false
+window-padding-x = 18
+window-padding-y = 14
+window-padding-balance = true
+cursor-style = bar
+cursor-style-blink = true
+mouse-hide-while-typing = true
+confirm-close-surface = false
+copy-on-select = clipboard

@@ -1,0 +1,10 @@
+[Unit]
+Description=Disable MT7921 runtime power management
+After=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/mt7921-nopm
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+[Unit]
+Description=Apply power mode for current AC state
+After=asusd.service
+
+[Service]
+Type=oneshot
+ExecStart=/etc/acpi/actions/ac_adapter.sh
+
+[Install]
+WantedBy=multi-user.target

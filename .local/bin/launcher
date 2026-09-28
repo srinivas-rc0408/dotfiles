@@ -1,0 +1,4 @@
+#!/bin/bash
+pkill -x rofi && exit 0
+q=$(shuf -n1 "$HOME/.config/rofi/quotes.txt" 2>/dev/null | tr -d "\042\134")
+exec rofi -show drun -modes "drun,actions:$HOME/.local/bin/quick-actions" -theme-str "textbox-quote { str: \"$q\"; }"

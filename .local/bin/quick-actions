@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+run() { setsid -f sh -c "sleep 0.25; $1" >/dev/null 2>&1; }
+if [ "$ROFI_RETV" = "1" ]; then
+  case "$1" in
+    Turbo)           run "asusctl profile set Performance && notify-send \"ϟ Turbo\" \"Performance profile on\"" ;;
+    Balanced)        run "asusctl profile set Balanced && notify-send \"Balanced\" \"Balanced profile on\"" ;;
+    "Battery Saver") run "asusctl profile set Quiet && notify-send \"Battery Saver\" \"Quiet profile on\"" ;;
+    Screenshot)      run "grim -g \"\$(slurp)\" - | swappy -f -" ;;
+    Clipboard)       run "cliphist list | rofi -dmenu -p clipboard | cliphist decode | wl-copy" ;;
+    Lock)            run "hyprlock" ;;
+    Sleep)           run "systemctl suspend" ;;
+    Restart)         run "systemctl reboot" ;;
+    "Power Off")     run "systemctl poweroff" ;;
+  esac
+  exit 0
+fi
+printf "Turbo\0icon\x1futilities-system-monitor\n"
+printf "Balanced\0icon\x1fpreferences-system-power\n"
+printf "Battery Saver\0icon\x1fbattery\n"
+printf "Screenshot\0icon\x1faccessories-screenshot\n"
+printf "Clipboard\0icon\x1fedit-paste\n"
+printf "Lock\0icon\x1fsystem-lock-screen\n"
+printf "Sleep\0icon\x1fsystem-suspend\n"
+printf "Restart\0icon\x1fsystem-reboot\n"
+printf "Power Off\0icon\x1fsystem-shutdown\n"
