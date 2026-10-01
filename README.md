@@ -63,8 +63,8 @@ A minimal black and white glass desktop on Arch Linux, tuned for an ASUS TUF F15
 
 ## Install
 
-    git clone https://github.com/srinivas-rc0408/Linux-Customizations-.git
-    cd Linux-Customizations-
+    git clone https://github.com/srinivas-rc0408/dotfiles.git
+    cd dotfiles
     sudo pacman -S --needed - < packages/pacman.txt
     ./install.sh
 
