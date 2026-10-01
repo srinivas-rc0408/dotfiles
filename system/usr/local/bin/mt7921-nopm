@@ -2,4 +2,5 @@
 for f in /sys/kernel/debug/ieee80211/phy*/mt76/runtime-pm /sys/kernel/debug/ieee80211/phy*/mt76/deep-sleep; do
   [ -w "$f" ] && echo 0 > "$f"
 done
+[ -w /sys/module/rtw89_core_git/parameters/disable_ps_mode ] && echo Y > /sys/module/rtw89_core_git/parameters/disable_ps_mode
 exit 0

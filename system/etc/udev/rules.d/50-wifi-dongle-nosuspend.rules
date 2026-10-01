@@ -1,1 +1,2 @@
 ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="3625", ATTR{idProduct}=="010b", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="net", DRIVERS=="rtw89_8851bu_git", RUN+="/usr/local/bin/mt7921-nopm"
