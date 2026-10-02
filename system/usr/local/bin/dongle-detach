@@ -1,0 +1,8 @@
+#!/bin/sh
+for n in /sys/class/net/*; do
+  [ "$(basename "$(readlink -f "$n/device/driver" 2>/dev/null)")" = "rtw89_8851bu_git" ] && ip link set "$(basename "$n")" down
+done
+for d in /sys/bus/usb/devices/*; do
+  [ -f "$d/idVendor" ] && [ "$(cat "$d/idVendor")" = "3625" ] && echo 0 > "$d/authorized"
+done
+exit 0

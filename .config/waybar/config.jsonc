@@ -8,7 +8,7 @@
   "spacing": 6,
   "modules-left": ["niri/workspaces", "niri/window"],
   "modules-center": ["clock"],
-  "modules-right": ["cava", "mpris", "cpu", "memory", "backlight", "pulseaudio", "network", "battery", "custom/notify", "tray", "custom/power"],
+  "modules-right": ["mpris", "cpu", "memory", "backlight", "pulseaudio", "network", "battery", "custom/notify", "tray", "custom/power"],
   "niri/window": { "max-length": 35 },
   "clock": {
     "format": "󰥔 {:%I:%M %p}",
