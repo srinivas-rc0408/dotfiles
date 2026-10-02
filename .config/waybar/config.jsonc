@@ -138,8 +138,8 @@
     "input-filename": "temp1_input",
     "interval": 3,
     "critical-threshold": 90,
-    "format": "{temperatureC}°",
-    "format-critical": "{temperatureC}° !",
+    "format": "temp {temperatureC}°",
+    "format-critical": "temp {temperatureC}° !",
     "tooltip-format": "CPU package {temperatureC}°C"
   },
   "custom/profile": {
