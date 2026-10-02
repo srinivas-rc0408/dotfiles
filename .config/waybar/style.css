@@ -33,3 +33,9 @@ tooltip { background: #14122d; border: 1px solid #f5e6a8; border-radius: 10px; }
 window#waybar { background-color: transparent; }
 #workspaces button.active { background-color: rgba(255,255,255,0.90); color: #0c0c0e; }
 
+#temperature, #custom-profile { padding: 0 10px; }
+#custom-profile { font-weight: 600; }
+#custom-profile:hover { background-color: rgba(255,255,255,0.12); border-radius: 999px; }
+#cpu.warning, #memory.warning, #battery.warning:not(.charging) { color: #ffd27a; }
+#cpu.critical, #memory.critical, #temperature.critical, #battery.critical:not(.charging) { color: #ff6b6b; }
+#battery.charging, #battery.plugged { color: #ffffff; }

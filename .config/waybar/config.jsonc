@@ -6,10 +6,30 @@
   "margin-left": 12,
   "margin-right": 12,
   "spacing": 6,
-  "modules-left": ["niri/workspaces", "niri/window"],
-  "modules-center": ["clock"],
-  "modules-right": ["mpris", "cpu", "memory", "backlight", "pulseaudio", "network", "battery", "custom/notify", "tray", "custom/power"],
-  "niri/window": { "max-length": 35 },
+  "modules-left": [
+    "niri/workspaces",
+    "niri/window"
+  ],
+  "modules-center": [
+    "clock"
+  ],
+  "modules-right": [
+    "mpris",
+    "cpu",
+    "memory",
+    "temperature",
+    "backlight",
+    "pulseaudio",
+    "network",
+    "battery",
+    "custom/profile",
+    "custom/notify",
+    "tray",
+    "custom/power"
+  ],
+  "niri/window": {
+    "max-length": 35
+  },
   "clock": {
     "format": "󰥔 {:%I:%M %p}",
     "format-alt": "󰃭 {:%A, %d %B %Y}",
@@ -17,30 +37,85 @@
   },
   "mpris": {
     "format": "{status_icon} {title}",
-    "status-icons": { "playing": "󰏤", "paused": "󰐊" },
+    "status-icons": {
+      "playing": "󰏤",
+      "paused": "󰐊"
+    },
     "max-length": 30,
     "on-click": "playerctl play-pause"
   },
-  "cpu": { "format": "cpu {usage}%", "interval": 2 },
-  "memory": { "format": "mem {percentage}%", "interval": 2 },
-  "backlight": { "format": "󰃠 {percent}%", "on-scroll-up": "brightnessctl set 5%+", "on-scroll-down": "brightnessctl set 5%-" },
+  "cpu": {
+    "interval": 2,
+    "format": "cpu {usage}%",
+    "states": {
+      "warning": 70,
+      "critical": 90
+    }
+  },
+  "memory": {
+    "interval": 3,
+    "format": "mem {percentage}%",
+    "tooltip-format": "{used:0.1f} / {total:0.1f} GiB used\nswap {swapUsed:0.1f} GiB",
+    "states": {
+      "warning": 75,
+      "critical": 90
+    }
+  },
+  "backlight": {
+    "format": "󰃠 {percent}%",
+    "on-scroll-up": "brightnessctl set 5%+",
+    "on-scroll-down": "brightnessctl set 5%-"
+  },
   "pulseaudio": {
     "on-scroll-up": "swayosd-client --output-volume +2 --max-volume 100",
     "on-scroll-down": "swayosd-client --output-volume -2",
-    "smooth-scrolling-threshold": 1, "format": "󰕾 {volume}%", "format-muted": "󰝟", "on-click": "pavucontrol" },
-  "network": { "format-wifi": "󰤨 {essid}", "format-disconnected": "󰤭 off", "on-click": "nm-connection-editor" },
+    "smooth-scrolling-threshold": 1,
+    "format": "󰕾 {volume}%",
+    "format-muted": "󰝟",
+    "on-click": "pavucontrol"
+  },
+  "network": {
+    "format-wifi": "󰤨 {essid}",
+    "format-disconnected": "offline",
+    "on-click": "nm-connection-editor",
+    "interval": 3,
+    "tooltip-format-wifi": "{essid}  ·  signal {signalStrength}%\n{ifname}  {ipaddr}\n⇣ {bandwidthDownBytes}   ⇡ {bandwidthUpBytes}"
+  },
   "battery": {
     "format": "{icon} {capacity}%",
-    "format-charging": "󰂄 {capacity}%",
-    "format-icons": ["󰁺","󰁼","󰁾","󰂀","󰁹"],
-    "states": { "warning": 25, "critical": 12 }
+    "format-charging": "⚡ {capacity}%",
+    "format-icons": [
+      "󰁺",
+      "󰁼",
+      "󰁾",
+      "󰂀",
+      "󰁹"
+    ],
+    "states": {
+      "warning": 25,
+      "critical": 12
+    },
+    "interval": 10,
+    "format-plugged": "⚡ {capacity}%",
+    "tooltip-format": "{timeTo}\n{power:0.1f} W"
   },
-  "tray": { "spacing": 8 },
+  "tray": {
+    "spacing": 8
+  },
   "cava": {
     "bars": 12,
     "framerate": 30,
     "bar_delimiter": 0,
-    "format-icons": ["▁","▂","▃","▄","▅","▆","▇","█"],
+    "format-icons": [
+      "▁",
+      "▂",
+      "▃",
+      "▄",
+      "▅",
+      "▆",
+      "▇",
+      "█"
+    ],
     "hide_on_silence": true
   },
   "custom/notes": {
@@ -57,5 +132,22 @@
     "format": "⏻",
     "on-click": "pkill -x wlogout || wlogout -b 5 -T 470 -B 470 -L 578 -R 578 -c 16 -p layer-shell",
     "tooltip": false
+  },
+  "temperature": {
+    "hwmon-path-abs": "/sys/devices/platform/coretemp.0/hwmon",
+    "input-filename": "temp1_input",
+    "interval": 3,
+    "critical-threshold": 90,
+    "format": "{temperatureC}°",
+    "format-critical": "{temperatureC}° !",
+    "tooltip-format": "CPU package {temperatureC}°C"
+  },
+  "custom/profile": {
+    "exec": "asusctl profile get 2>/dev/null | sed -n \"s/Active profile: //p\" | sed \"s/Performance/turbo/;s/Balanced/balanced/;s/Quiet/quiet/\"",
+    "interval": 5,
+    "signal": 8,
+    "format": "{}",
+    "tooltip": false,
+    "on-click": "asusctl profile next >/dev/null; pkill -RTMIN+8 waybar"
   }
 }
