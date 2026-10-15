@@ -1,10 +1,7 @@
 function fetch
-    set -l logo ~/.config/fastfetch/s10.png
-    if test $COLUMNS -lt 90; or not test -f $logo
+    if test $COLUMNS -lt 70
         fastfetch --logo none
-        return
+    else
+        fastfetch --logo ~/.config/fastfetch/s10.txt --logo-type file --logo-color-1 97 --logo-color-2 37 --logo-color-3 90 --logo-padding-top 5 --logo-padding-left 3 --logo-padding-right 6
     end
-    set -l w (math "min(26, max(14, floor($COLUMNS / 6)))")
-    set -l h (math "ceil($w * 0.31)")
-    fastfetch --logo $logo --logo-type kitty-direct --logo-width $w --logo-height $h --logo-padding-top 1
 end
