@@ -527,3 +527,5 @@ window-rule {
     match title=r#"^(Open|Save|Choose|Select).*"#
     open-floating true
 }
+
+spawn-sh-at-startup "sleep 20; ~/.local/bin/shutdown-check"
