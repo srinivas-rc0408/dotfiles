@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Niri Settings
+Comment=Edit niri config (keybinds, layout, rules) with auto-validation
+Exec=niri-settings
+Icon=preferences-desktop
+Categories=Settings;

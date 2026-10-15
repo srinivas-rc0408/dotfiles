@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+CFG="$HOME/.config/niri/config.kdl"; BAK="$HOME/.cache/niri-config.last-good"
+niri validate >/dev/null 2>&1 && cp "$CFG" "$BAK"
+if command -v kate >/dev/null; then kate --block "$CFG"; else ghostty -e nano "$CFG"; fi
+if niri validate >/dev/null 2>&1; then
+  notify-send -t 2500 "Niri Settings" "Saved and applied"
+else
+  err=$(niri validate 2>&1 | grep -m1 -iE "error|×" | cut -c1-120)
+  cp "$BAK" "$CFG"
+  notify-send -u critical "Niri Settings" "Invalid config, restored the last working version. $err"
+fi

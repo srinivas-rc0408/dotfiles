@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=jcode: home
+Exec=/home/superior/.jcode/hotkey/launch_jcode_0_cmd_semicolon.sh
+NoDisplay=true
+StartupNotify=false
+X-KDE-GlobalAccel-CommandShortcut=true
