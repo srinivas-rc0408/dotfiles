@@ -378,6 +378,7 @@ window-rule {
 }
 
 binds {
+    Ctrl+Mod+Alt+M hotkey-overlay-title="Visualizer on/off" { spawn "~/.local/bin/viz-toggle"; }
     // ── launch ───────────────────────────────────────────
     XF86Tools repeat=false hotkey-overlay-title="App launcher (tap Win)" { spawn "~/.local/bin/launcher"; }
     Mod+Return hotkey-overlay-title="Terminal" { spawn "ghostty"; }

@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
-CFG="$HOME/.config/cava/config-wall"
-start() { pgrep -f "cava -p $CFG" >/dev/null || setsid -f kitty +kitten panel --edge=bottom --layer=background --lines=10 --exclusive-zone=0 --override-exclusive-zone -o background_opacity=0 -o font_size=6 cava -p "$CFG" >/dev/null 2>&1; }
-stop()  { pkill -f "cava -p $CFG"; }
-playerctl -a --follow status 2>/dev/null | while read -r _; do
-  if playerctl -a status 2>/dev/null | grep -q Playing; then start; else stop; fi
-done
+CFG="$HOME/.config/cava/config-wall"; OFF="$HOME/.cache/viz-off"
+W=900; M=$(( (1920 - W) / 2 ))
+is_short() {
+  url=$(playerctl metadata xesam:url 2>/dev/null)
+  case "$url" in *"/shorts/"*) return 0;; esac
+  len=$(playerctl metadata mpris:length 2>/dev/null)
+  [ -z "$url" ] && [ -n "$len" ] && [ "$len" -gt 0 ] && [ "$len" -le 180000000 ] && return 0
+  return 1
+}
+start() {
+  pgrep -f "cava -p $CFG" >/dev/null && return
+  setsid -f kitty +kitten panel --edge=bottom --layer=bottom --lines=9 --margin-left=$M --margin-right=$M --margin-bottom=28 --exclusive-zone=0 --override-exclusive-zone -o background_opacity=0 -o font_size=8 cava -p "$CFG" >/dev/null 2>&1
+  setsid -f kitty +kitten panel --edge=bottom --layer=bottom --lines=1 --margin-left=$M --margin-right=$M --margin-bottom=150 --exclusive-zone=0 --override-exclusive-zone -o background_opacity=0 -o font_size=10.5 -o "font_family=JetBrainsMono Nerd Font" -o foreground=#d8d8dc "$HOME/.local/bin/viz-title" >/dev/null 2>&1
+}
+stop() { pkill -f "cava -p $CFG"; pkill -f viz-title; }
+check() {
+  [ -f "$OFF" ] && { stop; return; }
+  if playerctl status 2>/dev/null | grep -q Playing && ! is_short; then start; else stop; fi
+}
+check
+playerctl -a --follow metadata --format "{{status}}|{{title}}" 2>/dev/null | while read -r _; do check; done

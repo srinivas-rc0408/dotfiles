@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+OFF="$HOME/.cache/viz-off"
+if [ -f "$OFF" ]; then rm -f "$OFF"; notify-send -t 1500 "Visualizer" "On"; else touch "$OFF"; notify-send -t 1500 "Visualizer" "Off"; fi
+pkill -f viz-daemon; setsid -f "$HOME/.local/bin/viz-daemon" >/dev/null 2>&1

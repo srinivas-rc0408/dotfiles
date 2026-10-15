@@ -104,7 +104,7 @@ if status is-interactive
         ollama run comb-llm $argv
     end
 
-fastfetch
+fetch
 
 alias vpn-on="warp-cli connect"
 alias vpn-off="warp-cli disconnect"

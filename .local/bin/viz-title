@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+printf "\033[?25l"
+playerctl --follow metadata --format "{{ title }}" 2>/dev/null | while IFS= read -r t; do
+  cols=$(tput cols); t="${t:0:$((cols-4))}"
+  pad=$(( (cols - ${#t}) / 2 )); [ $pad -lt 0 ] && pad=0
+  printf "\r\033[2K%*s%s" "$pad" "" "$t"
+done

@@ -25,8 +25,7 @@ def rebalance():
         if w.get("workspace_id") != ws or w.get("is_floating"):
             continue
         pos = (w.get("layout") or {}).get("pos_in_scrolling_layout")
-        if pos:
-            cols.setdefault(pos[0], w["id"])
+        cols.setdefault(pos[0] if pos else ("w", w["id"]), w["id"])
     n = len(cols)
     if n == 0 or last.get(ws) == n:
         return
