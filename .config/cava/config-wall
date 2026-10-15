@@ -1,0 +1,25 @@
+[general]
+framerate = 45
+autosens = 1
+bar_width = 3
+bar_spacing = 2
+
+[input]
+method = pipewire
+source = auto
+
+[output]
+method = noncurses
+channels = mono
+mono_option = average
+orientation = bottom
+
+[color]
+gradient = 1
+gradient_count = 2
+gradient_color_1 = '#5a5a62'
+gradient_color_2 = '#ffffff'
+
+[smoothing]
+monstercat = 1
+noise_reduction = 82

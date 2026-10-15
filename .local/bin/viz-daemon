@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+CFG="$HOME/.config/cava/config-wall"
+start() { pgrep -f "cava -p $CFG" >/dev/null || setsid -f kitty +kitten panel --edge=bottom --layer=background --lines=10 --exclusive-zone=0 --override-exclusive-zone -o background_opacity=0 -o font_size=6 cava -p "$CFG" >/dev/null 2>&1; }
+stop()  { pkill -f "cava -p $CFG"; }
+playerctl -a --follow status 2>/dev/null | while read -r _; do
+  if playerctl -a status 2>/dev/null | grep -q Playing; then start; else stop; fi
+done

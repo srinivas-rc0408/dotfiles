@@ -67,7 +67,7 @@
     "on-scroll-down": "brightnessctl set 5%-"
   },
   "pulseaudio": {
-    "on-scroll-up": "swayosd-client --output-volume +2 --max-volume 100",
+    "on-scroll-up": "swayosd-client --output-volume +2 --max-volume 150",
     "on-scroll-down": "swayosd-client --output-volume -2",
     "smooth-scrolling-threshold": 1,
     "format": "󰕾 {volume}%",

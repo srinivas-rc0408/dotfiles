@@ -443,7 +443,7 @@ binds {
     Shift+Print hotkey-overlay-title="Record area (toggle)" { spawn "~/.local/bin/screenrec"; }
 
     // ── hardware keys ────────────────────────────────────
-    XF86AudioRaiseVolume  allow-when-locked=true { spawn "swayosd-client" "--output-volume" "+3" "--max-volume" "100"; }
+    XF86AudioRaiseVolume  allow-when-locked=true { spawn "swayosd-client" "--output-volume" "+3" "--max-volume" "150"; }
     XF86AudioLowerVolume  allow-when-locked=true { spawn "swayosd-client" "--output-volume" "-3"; }
     XF86AudioMute         allow-when-locked=true { spawn "swayosd-client" "--output-volume" "mute-toggle"; }
     XF86AudioMicMute      allow-when-locked=true { spawn "swayosd-client" "--input-volume" "mute-toggle"; }
@@ -529,3 +529,21 @@ window-rule {
 }
 
 spawn-sh-at-startup "sleep 20; ~/.local/bin/shutdown-check"
+
+window-rule {
+    match app-id=r#"^org\.kde\.dolphin$"#
+    match app-id=r#"^systemsettings$"#
+    match app-id=r#"^org\.kde\.(ark|kate|kwrite|gwenview|okular|discover|partitionmanager|kcalc)$"#
+    match app-id=r#"^org\.pulseaudio\.pavucontrol$"#
+    match app-id=r#"^(nm-connection-editor|blueman-manager)$"#
+    opacity 0.90
+    background-effect {
+        blur true
+    }
+}
+
+spawn-at-startup "~/.local/bin/niri-autosplit"
+
+spawn-at-startup "~/.local/bin/viz-daemon"
+
+spawn-at-startup "easyeffects" "--gapplication-service"
