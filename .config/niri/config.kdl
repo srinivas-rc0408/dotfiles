@@ -379,13 +379,13 @@ window-rule {
 
 binds {
     // ── launch ───────────────────────────────────────────
-    F13 repeat=false hotkey-overlay-title="App launcher (tap Win)" { spawn "~/.local/bin/launcher"; }
+    XF86Tools repeat=false hotkey-overlay-title="App launcher (tap Win)" { spawn "~/.local/bin/launcher"; }
     Mod+Return hotkey-overlay-title="Terminal" { spawn "ghostty"; }
     Mod+T hotkey-overlay-title=null { spawn "ghostty"; }
     Mod+J hotkey-overlay-title="Brave" { spawn "brave"; }
     Mod+K hotkey-overlay-title="Firefox" { spawn "firefox"; }
     Mod+L hotkey-overlay-title="Claude Code" { spawn "ghostty" "-e" "fish" "-lc" "claude"; }
-    Mod+E hotkey-overlay-title="Files" { spawn "dolphin"; }
+    Mod+E hotkey-overlay-title="Dolphin" { spawn "dolphin"; }
     Mod+V hotkey-overlay-title="Clipboard history" { spawn-sh "cliphist list | rofi -dmenu -p clipboard | cliphist decode | wl-copy"; }
     Mod+N hotkey-overlay-title="Notifications" { spawn "swaync-client" "-t" "-sw"; }
 
