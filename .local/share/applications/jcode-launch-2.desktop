@@ -1,7 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=jcode: self-dev
-Exec=/home/superior/.jcode/hotkey/launch_jcode_2_cmd_shift_quote.sh
-NoDisplay=true
-StartupNotify=false
-X-KDE-GlobalAccel-CommandShortcut=true

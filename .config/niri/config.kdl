@@ -312,20 +312,31 @@ animations {
         spring damping-ratio=0.85 stiffness=1200 epsilon=0.0001
     }
     horizontal-view-movement {
-        spring damping-ratio=0.9 stiffness=1200 epsilon=0.0001
+        spring damping-ratio=0.88 stiffness=850 epsilon=0.0001
     }
     window-movement {
-        spring damping-ratio=0.85 stiffness=1200 epsilon=0.0001
+        spring damping-ratio=0.86 stiffness=900 epsilon=0.0001
     }
     window-resize {
-        spring damping-ratio=0.9 stiffness=1200 epsilon=0.0001
+        spring damping-ratio=0.86 stiffness=900 epsilon=0.0001
     }
     window-open {
-        duration-ms 220
+        duration-ms 240
         curve "ease-out-expo"
+        custom-shader r"
+            vec4 open_color(vec3 coords_geo, vec3 size_geo) {
+                float p = niri_clamped_progress;
+                float scale = 0.92 + 0.08 * p;
+                vec3 coords = vec3((coords_geo.xy - 0.5) / scale + 0.5, 1.0);
+                if (coords.x < 0.0 || coords.x > 1.0 || coords.y < 0.0 || coords.y > 1.0)
+                    return vec4(0.0);
+                vec3 coords_tex = niri_geo_to_tex * coords;
+                return texture2D(niri_tex, coords_tex.st) * p;
+            }
+        "
     }
     window-close {
-        duration-ms 180
+        duration-ms 150
         curve "ease-out-quad"
     }
     // Uncomment to turn off all animations.
