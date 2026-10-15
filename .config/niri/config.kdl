@@ -531,20 +531,20 @@ window-rule {
 
 spawn-sh-at-startup "sleep 20; ~/.local/bin/shutdown-check"
 
-window-rule {
-    match app-id=r#"^org\.kde\.dolphin$"#
-    match app-id=r#"^systemsettings$"#
-    match app-id=r#"^org\.kde\.(ark|kate|kwrite|gwenview|okular|discover|partitionmanager|kcalc)$"#
-    match app-id=r#"^org\.pulseaudio\.pavucontrol$"#
-    match app-id=r#"^(nm-connection-editor|blueman-manager)$"#
-    opacity 0.90
-    background-effect {
-        blur true
-    }
-}
-
 spawn-at-startup "~/.local/bin/niri-autosplit"
 
 spawn-at-startup "~/.local/bin/viz-daemon"
 
 spawn-at-startup "easyeffects" "--gapplication-service"
+
+window-rule {
+    match app-id=r#"(?i)dolphin"#
+    match app-id=r#"(?i)systemsettings"#
+    match app-id=r#"(?i)^org\.kde\."#
+    match app-id=r#"(?i)pavucontrol|nm-connection-editor|blueman|bottles|easyeffects"#
+    opacity 0.85
+    draw-border-with-background false
+    background-effect {
+        blur true
+    }
+}
