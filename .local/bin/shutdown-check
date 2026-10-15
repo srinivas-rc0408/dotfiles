@@ -1,4 +1,4 @@
 #!/bin/sh
-issues=$(journalctl -b -1 --no-pager 2>/dev/null | grep -cE "driver own failed|stop-sigterm.*timed out|final-sigterm.*timed out|Waiting for process")
+issues=$(journalctl -b -1 --no-pager 2>/dev/null | grep -cE "driver own failed|stop-sigterm.*timed out|final-sigterm.*timed out|Waiting for process: ")
 [ "$issues" -gt 0 ] && notify-send -u critical "Last shutdown had problems" "$issues warning(s). Run: journalctl -b -1 | grep -E \"timed out|driver own\""
 exit 0
