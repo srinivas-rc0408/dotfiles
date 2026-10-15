@@ -513,3 +513,17 @@ layer-rule {
         xray false
     }
 }
+
+window-rule {
+    match is-active=false
+    opacity 0.93
+}
+
+window-rule {
+    match app-id=r#"^org\.pulseaudio\.pavucontrol$"#
+    match app-id=r#"^nm-connection-editor$"#
+    match app-id=r#"^blueman-manager$"#
+    match app-id=r#"^xdg-desktop-portal-gtk$"#
+    match title=r#"^(Open|Save|Choose|Select).*"#
+    open-floating true
+}

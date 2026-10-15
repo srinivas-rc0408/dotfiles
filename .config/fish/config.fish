@@ -124,3 +124,5 @@ abbr -a ls 'eza --icons --group-directories-first'
 abbr -a ll 'eza -la --icons --git --group-directories-first'
 abbr -a lt 'eza --tree --level=2 --icons'
 abbr -a cat 'bat --style=plain --paging=never'
+zoxide init fish | source
+fzf --fish | source
