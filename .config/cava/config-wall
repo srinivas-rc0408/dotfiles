@@ -1,10 +1,10 @@
 [general]
 framerate = 60
 autosens = 1
-bar_width = 2
+bar_width = 1
 bar_spacing = 1
-lower_cutoff_freq = 50
-higher_cutoff_freq = 12000
+lower_cutoff_freq = 40
+higher_cutoff_freq = 9000
 
 [input]
 method = pipewire
@@ -12,7 +12,7 @@ source = auto
 
 [output]
 method = noncurses
-channels = stereo
+channels = mono
 mono_option = average
 orientation = bottom
 
@@ -24,5 +24,5 @@ gradient_color_2 = '#8a8a94'
 gradient_color_3 = '#ffffff'
 
 [smoothing]
-monstercat = 1.5
-noise_reduction = 88
+monstercat = 1
+noise_reduction = 78
