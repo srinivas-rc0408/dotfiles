@@ -126,3 +126,4 @@ abbr -a lt 'eza --tree --level=2 --icons'
 abbr -a cat 'bat --style=plain --paging=never'
 zoxide init fish | source
 fzf --fish | source
+
