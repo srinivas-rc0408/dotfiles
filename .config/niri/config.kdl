@@ -583,8 +583,10 @@ window-rule {
     border { off; }
     background-effect {
         blur true
-        xray false
+        xray true
     }
 }
 
 spawn-at-startup "~/.local/bin/s10-dash" "--hidden"
+
+spawn-at-startup "~/.local/bin/s10-dash-input"

@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+# Passive input watcher: double-tap Space on an empty desktop opens S10 Dash; click outside closes it.
+import json, select, subprocess, time
+import evdev
+from evdev import ecodes as e
+
+def niri(cmd):
+    out = subprocess.run(["niri", "msg", "--json", cmd], capture_output=True, text=True).stdout
+    try: return json.loads(out)
+    except Exception: return None
+
+def dash_open():
+    return any(w.get("app_id") == "dev.s10.dash" for w in (niri("windows") or []))
+
+def toggle():
+    subprocess.Popen([__import__("os").path.expanduser("~/.local/bin/s10-dash")], start_new_session=True)
+
+def devices():
+    out = []
+    for p in evdev.list_devices():
+        try:
+            d = evdev.InputDevice(p)
+            keys = d.capabilities().get(e.EV_KEY, [])
+            if e.KEY_SPACE in keys or e.BTN_LEFT in keys: out.append(d)
+        except Exception:
+            pass
+    return out
+
+devs = {d.fd: d for d in devices()}
+last_space, count, last_rescan = 0.0, 0, time.time()
+while True:
+    if time.time() - last_rescan > 10:
+        for d in devices():
+            if d.path not in [x.path for x in devs.values()]: devs[d.fd] = d
+        last_rescan = time.time()
+    r, _, _ = select.select(list(devs), [], [], 2)
+    for fd in r:
+        try: events = list(devs[fd].read())
+        except OSError:
+            devs.pop(fd, None); continue
+        for ev in events:
+            if ev.type != e.EV_KEY or ev.value != 1: continue
+            now = time.time()
+            if ev.code == e.KEY_SPACE:
+                if now - last_space < 0.04: continue
+                count = count + 1 if now - last_space < 0.35 else 1
+                last_space = now
+                if count == 2 and niri("focused-window") is None and not dash_open():
+                    toggle()
+            elif ev.code == e.BTN_LEFT:
+                time.sleep(0.08)
+                if dash_open():
+                    fw = niri("focused-window") or {}
+                    if fw.get("app_id") != "dev.s10.dash": toggle()

@@ -18,7 +18,7 @@ os.makedirs(THUMBS, exist_ok=True)
 CSS = """
 window.dash { background: transparent; }
 .panel {
-  background: rgba(14, 14, 18, 0.50);
+  background: rgba(14, 14, 18, 0.66);
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 22px;
   padding: 16px;
@@ -119,7 +119,6 @@ class Dash(Gtk.ApplicationWindow):
         keys = Gtk.EventControllerKey()
         keys.connect("key-pressed", lambda c, kv, kc, st: (self.set_visible(False), True)[1] if kv == Gdk.KEY_Escape else False)
         self.add_controller(keys)
-        self.connect("notify::is-active", self.on_active)
 
         GLib.timeout_add(33, self.tick_clock)
         GLib.timeout_add(1000, self.tick_slow)
