@@ -1,0 +1,334 @@
+#!/usr/bin/env python3
+# S10 Dash: clock | calendar | music | wallpapers  (GTK4, toggles on relaunch)
+import datetime, glob, hashlib, math, os, shutil, subprocess, sys, threading
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
+gi.require_version("GdkPixbuf", "2.0")
+gi.require_version("Pango", "1.0")
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
+
+HOME = os.path.expanduser("~")
+WALL_DIRS = [f"{HOME}/Pictures/wallpaper", f"{HOME}/Pictures/wallpapers",
+             f"{HOME}/Pictures/Wallpapers", f"{HOME}/Wallpapers"]
+CURRENT = f"{HOME}/Pictures/wall.jpg"
+THUMBS = f"{HOME}/.cache/s10-dash/thumbs"
+os.makedirs(THUMBS, exist_ok=True)
+
+CSS = """
+window.dash { background: transparent; }
+.panel {
+  background: rgba(14, 14, 18, 0.50);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 22px;
+  padding: 16px;
+  animation: rise 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(-14px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+.card {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+.cap { color: rgba(255, 255, 255, 0.42); font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+.time { color: #ffffff; font-size: 22px; font-weight: 800; }
+.secs { color: rgba(255, 255, 255, 0.45); font-size: 14px; font-weight: 700; }
+.date { color: rgba(255, 255, 255, 0.60); font-size: 12px; }
+calendar { background: transparent; border: none; color: #dcdce0; font-size: 12px; }
+calendar > header { border: none; background: transparent; }
+calendar > header > label { color: #ffffff; font-weight: 700; }
+calendar > header > button { background: transparent; border: none; box-shadow: none; color: rgba(255,255,255,0.6); min-height: 20px; }
+calendar > header > button:hover { color: #ffffff; background: rgba(255,255,255,0.08); border-radius: 8px; }
+calendar > grid > label.day-name { color: rgba(255,255,255,0.40); font-weight: 700; }
+calendar > grid > label.day-number { border-radius: 8px; padding: 3px; transition: background 140ms ease; }
+calendar > grid > label.day-number:hover { background: rgba(255,255,255,0.10); }
+calendar > grid > label.day-number.other-month { color: rgba(255,255,255,0.18); }
+calendar > grid > label.today { background: #ffffff; color: #0c0c0e; font-weight: 800; }
+calendar > grid > label.day-number:selected { background: rgba(255,255,255,0.18); color: #ffffff; }
+.track { color: #ffffff; font-size: 13px; font-weight: 700; }
+.artist { color: rgba(255, 255, 255, 0.55); font-size: 11px; }
+.artbox { border-radius: 12px; background: rgba(255,255,255,0.06); }
+.mbtn {
+  background: rgba(255, 255, 255, 0.07); border: none; box-shadow: none;
+  border-radius: 999px; min-width: 34px; min-height: 34px; color: #ffffff;
+  transition: background 140ms ease, transform 140ms ease;
+}
+.mbtn:hover { background: rgba(255, 255, 255, 0.16); transform: scale(1.06); }
+.mbtn:active { transform: scale(0.94); }
+.mbtn.play { background: #ffffff; color: #0c0c0e; min-width: 40px; min-height: 40px; }
+.thumb {
+  padding: 0; border: 2px solid transparent; border-radius: 12px;
+  background: transparent; box-shadow: none;
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 200ms ease, box-shadow 200ms ease;
+}
+.thumb:hover { transform: scale(1.07); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55); border-color: rgba(255,255,255,0.35); }
+.thumb.active { border-color: #ffffff; }
+.thumb picture { border-radius: 10px; }
+.empty { color: rgba(255, 255, 255, 0.45); font-size: 11px; }
+scrollbar { opacity: 0; }
+"""
+
+def sh(*args):
+    try:
+        return subprocess.run(args, capture_output=True, text=True, timeout=2).stdout.strip()
+    except Exception:
+        return ""
+
+def thumb_for(path):
+    key = hashlib.md5(f"{path}{os.path.getmtime(path)}".encode()).hexdigest()
+    out = f"{THUMBS}/{key}.png"
+    if not os.path.exists(out):
+        pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, 320, 200, True)
+        pb.savev(out, "png", [], [])
+    return out
+
+def set_wallpaper(path, pos):
+    try:
+        shutil.copyfile(path, CURRENT)
+    except Exception:
+        pass
+    if shutil.which("swww"):
+        if subprocess.run(["swww", "query"], capture_output=True).returncode != 0:
+            subprocess.Popen(["swww-daemon"], start_new_session=True,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            GLib.usleep(400000)
+        subprocess.Popen(["swww", "img", CURRENT, "--transition-type", "grow",
+                          "--transition-pos", pos, "--transition-duration", "1.1",
+                          "--transition-fps", "120", "--transition-bezier", ".2,.8,.2,1"],
+                         start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        subprocess.run(["pkill", "-x", "swaybg"])
+        subprocess.Popen(["swaybg", "-i", CURRENT, "-m", "fill"], start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+class Dash(Gtk.ApplicationWindow):
+    def __init__(self, app):
+        super().__init__(application=app, title="S10 Dash")
+        self.add_css_class("dash")
+        self.set_decorated(False)
+        self.set_resizable(False)
+        self._was_active = False
+
+        panel = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        panel.add_css_class("panel")
+        self.set_child(panel)
+        panel.append(self.clock_card())
+        panel.append(self.calendar_card())
+        panel.append(self.music_card())
+        panel.append(self.wall_card())
+
+        keys = Gtk.EventControllerKey()
+        keys.connect("key-pressed", lambda c, kv, kc, st: (self.close(), True)[1] if kv == Gdk.KEY_Escape else False)
+        self.add_controller(keys)
+        self.connect("notify::is-active", self.on_active)
+
+        GLib.timeout_add(33, self.tick_clock)
+        GLib.timeout_add(1000, self.tick_slow)
+        self.tick_slow()
+
+    def on_active(self, *_):
+        if self.is_active():
+            self._was_active = True
+        elif self._was_active:
+            self.close()
+
+    def caption(self, text):
+        l = Gtk.Label(label=text, xalign=0)
+        l.add_css_class("cap")
+        return l
+
+    def clock_card(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.add_css_class("card")
+        self.face = Gtk.DrawingArea()
+        self.face.set_content_width(150)
+        self.face.set_content_height(150)
+        self.face.set_draw_func(self.draw_face)
+        box.append(self.face)
+        row = Gtk.Box(spacing=2, halign=Gtk.Align.CENTER)
+        self.l_time = Gtk.Label(); self.l_time.add_css_class("time")
+        self.l_secs = Gtk.Label(); self.l_secs.add_css_class("secs")
+        self.l_secs.set_valign(Gtk.Align.BASELINE)
+        row.append(self.l_time); row.append(self.l_secs)
+        box.append(row)
+        self.l_date = Gtk.Label(); self.l_date.add_css_class("date")
+        box.append(self.l_date)
+        return box
+
+    def draw_face(self, area, cr, w, h):
+        now = datetime.datetime.now()
+        cx, cy, r = w / 2, h / 2, min(w, h) / 2 - 3
+        cr.set_source_rgba(1, 1, 1, 0.05); cr.arc(cx, cy, r, 0, 2 * math.pi); cr.fill()
+        cr.set_source_rgba(1, 1, 1, 0.22); cr.set_line_width(1.2)
+        cr.arc(cx, cy, r, 0, 2 * math.pi); cr.stroke()
+        for i in range(60):
+            a = math.radians(i * 6 - 90)
+            major = i % 5 == 0
+            r1 = r - (11 if i % 15 == 0 else 8 if major else 4)
+            cr.set_line_width(2.2 if major else 1)
+            cr.set_source_rgba(1, 1, 1, 0.9 if major else 0.28)
+            cr.move_to(cx + r1 * math.cos(a), cy + r1 * math.sin(a))
+            cr.line_to(cx + (r - 3) * math.cos(a), cy + (r - 3) * math.sin(a))
+            cr.stroke()
+        s = now.second + now.microsecond / 1e6
+        m = now.minute + s / 60
+        hr = (now.hour % 12) + m / 60
+        cr.set_line_cap(1)
+        def hand(angle, length, width, alpha, tail=0):
+            a = math.radians(angle - 90)
+            cr.set_line_width(width); cr.set_source_rgba(1, 1, 1, alpha)
+            cr.move_to(cx - tail * math.cos(a), cy - tail * math.sin(a))
+            cr.line_to(cx + length * math.cos(a), cy + length * math.sin(a))
+            cr.stroke()
+        hand(hr * 30, r * 0.50, 4.2, 1.0)
+        hand(m * 6, r * 0.74, 3.0, 0.95)
+        hand(s * 6, r * 0.84, 1.2, 0.75, tail=r * 0.16)
+        cr.set_source_rgba(1, 1, 1, 1); cr.arc(cx, cy, 3.6, 0, 2 * math.pi); cr.fill()
+        cr.set_source_rgba(0.05, 0.05, 0.06, 1); cr.arc(cx, cy, 1.4, 0, 2 * math.pi); cr.fill()
+
+    def tick_clock(self):
+        self.face.queue_draw()
+        return True
+
+    def calendar_card(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.add_css_class("card")
+        box.append(self.caption("calendar"))
+        cal = Gtk.Calendar()
+        cal.set_show_week_numbers(False)
+        box.append(cal)
+        return box
+
+    def music_card(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        box.add_css_class("card")
+        box.set_size_request(230, -1)
+        box.append(self.caption("now playing"))
+        top = Gtk.Box(spacing=12)
+        frame = Gtk.Box(); frame.add_css_class("artbox"); frame.set_overflow(Gtk.Overflow.HIDDEN)
+        self.art = Gtk.Picture(); self.art.set_size_request(64, 64)
+        self.art.set_content_fit(Gtk.ContentFit.COVER)
+        frame.append(self.art)
+        top.append(frame)
+        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3, valign=Gtk.Align.CENTER)
+        self.l_track = Gtk.Label(xalign=0, max_width_chars=18, ellipsize=Pango.EllipsizeMode.END); self.l_track.add_css_class("track")
+        self.l_artist = Gtk.Label(xalign=0, max_width_chars=20, ellipsize=Pango.EllipsizeMode.END); self.l_artist.add_css_class("artist")
+        info.append(self.l_track); info.append(self.l_artist)
+        top.append(info)
+        box.append(top)
+        ctr = Gtk.Box(spacing=10, halign=Gtk.Align.CENTER)
+        for icon, cmd, extra in (("media-skip-backward-symbolic", "previous", None),
+                                 ("media-playback-start-symbolic", "play-pause", "play"),
+                                 ("media-skip-forward-symbolic", "next", None)):
+            b = Gtk.Button.new_from_icon_name(icon)
+            b.add_css_class("mbtn")
+            if extra:
+                b.add_css_class(extra); self.b_play = b
+            b.connect("clicked", lambda _b, c=cmd: (sh("playerctl", c), GLib.timeout_add(250, self.tick_slow)))
+            ctr.append(b)
+        box.append(ctr)
+        return box
+
+    def tick_slow(self):
+        now = datetime.datetime.now()
+        self.l_time.set_label(now.strftime("%I:%M"))
+        self.l_secs.set_label(now.strftime(" %p"))
+        self.l_date.set_label(now.strftime("%A, %d %B"))
+        st = sh("playerctl", "status")
+        if st:
+            meta = sh("playerctl", "metadata", "--format", "{{title}}\t{{artist}}\t{{mpris:artUrl}}").split("\t")
+            meta += ["", "", ""]
+            self.l_track.set_label(meta[0] or "Unknown")
+            self.l_artist.set_label(meta[1] or "")
+            art = meta[2]
+            if art.startswith("file://"):
+                self.art.set_filename(GLib.filename_from_uri(art)[0])
+            else:
+                self.art.set_paintable(None)
+            self.b_play.set_icon_name("media-playback-pause-symbolic" if st == "Playing" else "media-playback-start-symbolic")
+        else:
+            self.l_track.set_label("Nothing playing")
+            self.l_artist.set_label("Start a song or video")
+            self.art.set_paintable(None)
+            self.b_play.set_icon_name("media-playback-start-symbolic")
+        return True
+
+    def wall_card(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        box.add_css_class("card")
+        box.append(self.caption("wallpaper"))
+        sc = Gtk.ScrolledWindow()
+        sc.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sc.set_size_request(430, 196)
+        self.flow = Gtk.FlowBox(max_children_per_line=3, min_children_per_line=3,
+                                row_spacing=10, column_spacing=10, homogeneous=True,
+                                selection_mode=Gtk.SelectionMode.NONE)
+        self.flow.set_margin_top(6); self.flow.set_margin_bottom(6)
+        self.flow.set_margin_start(6); self.flow.set_margin_end(6)
+        sc.set_child(self.flow)
+        box.append(sc)
+        self.thumbs = []
+        threading.Thread(target=self.load_walls, daemon=True).start()
+        return box
+
+    def load_walls(self):
+        files = []
+        for d in WALL_DIRS:
+            for ext in ("jpg", "jpeg", "png", "webp"):
+                files += glob.glob(f"{d}/*.{ext}") + glob.glob(f"{d}/*.{ext.upper()}")
+        files = sorted(set(files))
+        if not files:
+            GLib.idle_add(self.no_walls)
+            return
+        for f in files:
+            try:
+                t = thumb_for(f)
+                GLib.idle_add(self.add_thumb, f, t)
+            except Exception:
+                pass
+
+    def no_walls(self):
+        l = Gtk.Label(label="Put images in ~/Pictures/wallpaper", wrap=True)
+        l.add_css_class("empty")
+        self.flow.append(l)
+
+    def add_thumb(self, path, thumb):
+        b = Gtk.Button(); b.add_css_class("thumb")
+        pic = Gtk.Picture.new_for_filename(thumb)
+        pic.set_content_fit(Gtk.ContentFit.COVER)
+        pic.set_size_request(128, 80)
+        b.set_child(pic)
+        b.set_tooltip_text(os.path.basename(path))
+        b.connect("clicked", self.pick, path)
+        self.flow.append(b)
+        self.thumbs.append(b)
+
+    def pick(self, btn, path):
+        for t in self.thumbs:
+            t.remove_css_class("active")
+        btn.add_css_class("active")
+        set_wallpaper(path, "0.5,0.5")
+
+class App(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id="dev.s10.dash", flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
+        self.win = None
+
+    def do_startup(self):
+        Gtk.Application.do_startup(self)
+        p = Gtk.CssProvider(); p.load_from_string(CSS) if hasattr(p, "load_from_string") else p.load_from_data(CSS.encode())
+        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+
+    def do_activate(self):
+        if self.win:
+            self.win.close(); return
+        self.win = Dash(self)
+        self.win.connect("close-request", lambda *_: (self.quit(), False)[1])
+        self.win.present()
+
+if __name__ == "__main__":
+    sys.exit(App().run(None))

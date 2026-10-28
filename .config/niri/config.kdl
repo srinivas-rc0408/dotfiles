@@ -275,7 +275,7 @@ spawn-at-startup "hyprlock"
 spawn-at-startup "waybar"
 spawn-at-startup "swayosd-server"
 spawn-at-startup "swaync"
-spawn-at-startup "swaybg" "-i" "/home/superior/Pictures/wall.jpg" "-m" "fill"
+spawn-sh-at-startup "swww-daemon & sleep 0.6; swww img ~/Pictures/wall.jpg --transition-type none"
 spawn-at-startup "nm-applet" "--indicator"
 spawn-at-startup "/usr/lib/polkit-kde-authentication-agent-1"
 spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
@@ -389,7 +389,7 @@ window-rule {
 }
 
 binds {
-    Mod+Space repeat=false hotkey-overlay-title="Calendar" { spawn "~/.local/bin/calpop"; }
+    Mod+Space repeat=false hotkey-overlay-title="Dashboard" { spawn "~/.local/bin/s10-dash"; }
     Ctrl+Mod+Alt+M hotkey-overlay-title="Visualizer on/off" { spawn "~/.local/bin/viz-toggle"; }
     // ── launch ───────────────────────────────────────────
     XF86Tools repeat=false hotkey-overlay-title="App launcher (tap Win)" { spawn "~/.local/bin/launcher"; }
@@ -571,12 +571,14 @@ layer-rule {
     }
 }
 
+
 window-rule {
-    match app-id="^s10-cal$"
+    match app-id=r#"^dev\.s10\.dash$"#
     open-floating true
     default-floating-position x=0 y=50 relative-to="top"
-    geometry-corner-radius 16
+    geometry-corner-radius 22
     clip-to-geometry true
+    draw-border-with-background false
     focus-ring { off; }
     border { off; }
     background-effect {

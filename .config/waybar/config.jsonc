@@ -52,7 +52,7 @@
       "on-scroll-up": "shift_down",
       "on-scroll-down": "shift_up"
     },
-    "on-click": "~/.local/bin/calpop"
+    "on-click": "~/.local/bin/s10-dash"
   },
   "mpris": {
     "format": "{status_icon} {title}",
