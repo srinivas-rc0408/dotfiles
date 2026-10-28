@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Streaming waybar clock: time 7s / date 3s cycle, click = date 10s, cross-fades.
 import datetime, json, os, signal, time
-TIME_SECS, DATE_SECS, MANUAL_SECS, FADE = 7, 3, 10, 0.16
+TIME_SECS, DATE_SECS, MANUAL_SECS, FADE = 7, 3, 10, 0.55
 open("/tmp/s10-clockd.pid", "w").write(str(os.getpid()))
 st = {"mode": "time", "until": time.time() + TIME_SECS, "manual": False, "click": False}
 def text(mode):

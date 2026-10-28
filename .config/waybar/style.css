@@ -10,7 +10,6 @@ window#waybar { background: transparent; color: #e8e8e8; }
 #workspaces button.active { color: #e8e8e8; background: #f5e6a8; }
 #workspaces button:hover { background: rgba(245,230,168,0.2); }
 #window { color: #e8e8e8; padding: 0 10px; }
-#clock, #custom-clock { color: #e8e8e8; font-weight: bold; padding: 0 14px; }
 #mpris { color: #e8e8e8; padding: 0 10px; }
 #cpu { color: #e8e8e8; padding: 0 8px; }
 #memory { color: #e8e8e8; padding: 0 8px; }
@@ -53,6 +52,7 @@ tooltip label {
 }
 
 
-#custom-clock { transition: color 160ms cubic-bezier(0.4, 0, 0.2, 1); }
-#custom-clock.fade { color: transparent; }
+
+#custom-clock { transition: color 600ms cubic-bezier(0.25, 0.1, 0.25, 1), padding 600ms cubic-bezier(0.25, 0.1, 0.25, 1); }
+#custom-clock.fade { color: transparent; transition: color 450ms cubic-bezier(0.4, 0, 1, 1); }
 #custom-clock.date { color: rgba(255, 255, 255, 0.88); }
