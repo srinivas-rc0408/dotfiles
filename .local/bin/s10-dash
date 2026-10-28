@@ -117,7 +117,7 @@ class Dash(Gtk.ApplicationWindow):
         panel.append(self.wall_card())
 
         keys = Gtk.EventControllerKey()
-        keys.connect("key-pressed", lambda c, kv, kc, st: (self.set_visible(False), True)[1] if kv == Gdk.KEY_Escape else False)
+        keys.connect("key-pressed", lambda c, kv, kc, st: (self.set_visible(False), True)[1])
         self.add_controller(keys)
 
         GLib.timeout_add(33, self.tick_clock)
@@ -327,6 +327,9 @@ class App(Gtk.Application):
         Gtk.Application.do_startup(self)
         p = Gtk.CssProvider(); p.load_from_string(CSS) if hasattr(p, "load_from_string") else p.load_from_data(CSS.encode())
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        act = Gio.SimpleAction.new("toggle", None)
+        act.connect("activate", lambda *_: self.do_activate())
+        self.add_action(act)
 
     def do_activate(self):
         first = self.win is None

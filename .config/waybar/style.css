@@ -10,7 +10,7 @@ window#waybar { background: transparent; color: #e8e8e8; }
 #workspaces button.active { color: #e8e8e8; background: #f5e6a8; }
 #workspaces button:hover { background: rgba(245,230,168,0.2); }
 #window { color: #e8e8e8; padding: 0 10px; }
-#clock { color: #e8e8e8; font-weight: bold; padding: 0 14px; }
+#clock, #custom-clock { color: #e8e8e8; font-weight: bold; padding: 0 14px; }
 #mpris { color: #e8e8e8; padding: 0 10px; }
 #cpu { color: #e8e8e8; padding: 0 8px; }
 #memory { color: #e8e8e8; padding: 0 8px; }
@@ -51,4 +51,4 @@ tooltip label {
   font-family: "JetBrainsMono Nerd Font", monospace;
   padding: 12px 16px;
 }
-#clock:hover { background-color: rgba(255, 255, 255, 0.10); }
+#clock:hover, #custom-clock:hover { background-color: rgba(255, 255, 255, 0.10); }

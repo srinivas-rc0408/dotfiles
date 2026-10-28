@@ -11,7 +11,7 @@
     "niri/window"
   ],
   "modules-center": [
-    "clock"
+    "custom/clock"
   ],
   "modules-right": [
     "mpris",
@@ -168,5 +168,13 @@
     "format": "{}",
     "tooltip": false,
     "on-click": "asusctl profile next >/dev/null; pkill -RTMIN+8 waybar"
+  },
+  "custom/clock": {
+    "exec": "~/.local/bin/s10-clock",
+    "interval": 2,
+    "signal": 9,
+    "on-click": "~/.local/bin/s10-clock click",
+    "tooltip": false,
+    "format": "{}"
   }
 }

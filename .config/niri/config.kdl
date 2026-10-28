@@ -389,7 +389,8 @@ window-rule {
 }
 
 binds {
-    Mod+Space repeat=false hotkey-overlay-title="Dashboard" { spawn "~/.local/bin/s10-dash"; }
+    Alt+Space repeat=false hotkey-overlay-title="Dashboard" { spawn "~/.local/bin/s10-dash-toggle"; }
+    Mod+Space repeat=false hotkey-overlay-title="Dashboard" { spawn "~/.local/bin/s10-dash-toggle"; }
     Ctrl+Mod+Alt+M hotkey-overlay-title="Visualizer on/off" { spawn "~/.local/bin/viz-toggle"; }
     // ── launch ───────────────────────────────────────────
     XF86Tools repeat=false hotkey-overlay-title="App launcher (tap Win)" { spawn "~/.local/bin/launcher"; }

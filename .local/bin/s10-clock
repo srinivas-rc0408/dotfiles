@@ -1,0 +1,12 @@
+#!/bin/sh
+S=/tmp/s10-clock-date; P=/tmp/s10-clock-pending
+if [ "$1" = click ]; then
+  if [ -e "$P" ]; then rm -f "$P"; exec "$HOME/.local/bin/s10-dash-toggle"; fi
+  touch "$P"; sleep 0.28
+  [ -e "$P" ] || exit 0
+  rm -f "$P"
+  if [ -e "$S" ]; then rm -f "$S"; else touch "$S"; fi
+  pkill -RTMIN+9 waybar
+else
+  if [ -e "$S" ]; then date "+  %A, %d %B %Y"; else date "+  %I:%M %p"; fi
+fi
