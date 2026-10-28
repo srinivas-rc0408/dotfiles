@@ -1,0 +1,10 @@
+[Unit]
+Description=Cap CPU turbo power to prevent thermal throttling
+After=power-mode.service thermald.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/cpu-power-cap
+
+[Install]
+WantedBy=multi-user.target

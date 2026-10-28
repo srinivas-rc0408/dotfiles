@@ -15,5 +15,6 @@ else
   mode="BALANCED (battery)"
 fi
 [ -w /sys/devices/system/cpu/intel_pstate/no_turbo ] && echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo
+/usr/local/bin/cpu-power-cap
 logger -t power-mode "$mode"
 exit 0

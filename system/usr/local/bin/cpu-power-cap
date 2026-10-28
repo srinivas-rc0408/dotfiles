@@ -1,0 +1,5 @@
+#!/bin/sh
+R=/sys/class/powercap/intel-rapl:0
+echo 45000000 > $R/constraint_0_power_limit_uw
+echo 65000000 > $R/constraint_1_power_limit_uw
+exit 0
