@@ -1,7 +1,12 @@
 #!/bin/sh
-P=/tmp/s10-clock-pending
-if [ -e "$P" ]; then rm -f "$P"; exec "$HOME/.local/bin/s10-dash-toggle"; fi
-touch "$P"; sleep 0.18
-[ -e "$P" ] || exit 0
-rm -f "$P"
-kill -USR1 "$(cat /tmp/s10-clockd.pid)" 2>/dev/null
+P=/tmp/s10-clock-last
+PID=$(cat /tmp/s10-clockd.pid 2>/dev/null)
+now=$(date +%s%N)
+last=$(cat "$P" 2>/dev/null || echo 0)
+if [ $(( (now - last) / 1000000 )) -lt 450 ]; then
+  rm -f "$P"
+  kill -USR2 "$PID" 2>/dev/null
+  exec "$HOME/.local/bin/s10-dash-toggle"
+fi
+echo "$now" > "$P"
+kill -USR1 "$PID" 2>/dev/null

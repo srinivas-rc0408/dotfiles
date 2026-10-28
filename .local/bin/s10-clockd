@@ -3,7 +3,7 @@
 import datetime, json, os, signal, time
 TIME_SECS, DATE_SECS, MANUAL_SECS, FADE = 7, 3, 10, 0.55
 open("/tmp/s10-clockd.pid", "w").write(str(os.getpid()))
-st = {"mode": "time", "until": time.time() + TIME_SECS, "manual": False, "click": False}
+st = {"mode": "time", "until": time.time() + TIME_SECS, "manual": False, "click": False, "revert": False}
 def text(mode):
     n = datetime.datetime.now()
     return n.strftime("\uf017  %I:%M %p") if mode == "time" else n.strftime("\uf073  %A, %d %B")
@@ -15,9 +15,13 @@ def switch(mode, dur, manual=False):
     emit(text(mode), mode)
     return text(mode)
 signal.signal(signal.SIGUSR1, lambda *_: st.__setitem__("click", True))
+signal.signal(signal.SIGUSR2, lambda *_: st.__setitem__("revert", True))
 last = text("time"); emit(last, "time")
 while True:
-    if st["click"]:
+    if st["revert"]:
+        st["revert"] = False; st["click"] = False
+        if st["mode"] == "date": last = switch("time", TIME_SECS)
+    elif st["click"]:
         st["click"] = False
         if st["mode"] == "date" and st["manual"]: last = switch("time", TIME_SECS)
         else: last = switch("date", MANUAL_SECS, True)
