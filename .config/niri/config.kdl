@@ -581,5 +581,6 @@ window-rule {
     border { off; }
     background-effect {
         blur true
+        xray false
     }
 }

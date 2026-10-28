@@ -32,7 +32,6 @@
   },
   "clock": {
     "format": "󰥔 {:%I:%M %p}",
-    "format-alt": "󰃭 {:%A, %d %B %Y}",
     "tooltip-format": "<span size=\"x-large\" weight=\"bold\">{:%I:%M %p}</span>\n<span foreground=\"#9a9aa2\">{:%A, %d %B %Y}</span>\n\n<tt>{calendar}</tt>",
     "tooltip": false,
     "calendar": {
