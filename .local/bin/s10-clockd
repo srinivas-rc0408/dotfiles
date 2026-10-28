@@ -1,33 +1,49 @@
 #!/usr/bin/env python3
-# Streaming waybar clock: time 7s / date 3s cycle, click = date 10s, cross-fades.
+# Streaming waybar clock: time 7s / date 3s cycle, single click = date 10s, USR2 = back to time.
 import datetime, json, os, signal, time
 TIME_SECS, DATE_SECS, MANUAL_SECS, FADE = 7, 3, 10, 0.55
 open("/tmp/s10-clockd.pid", "w").write(str(os.getpid()))
 st = {"mode": "time", "until": time.time() + TIME_SECS, "manual": False, "click": False, "revert": False}
+
 def text(mode):
     n = datetime.datetime.now()
-    return n.strftime("\uf017  %I:%M %p") if mode == "time" else n.strftime("\uf073  %A, %d %B")
+    return n.strftime("\uf017   %I:%M %p") if mode == "time" else n.strftime("\uf073   %a \u00b7 %d %b")
+
 def emit(t, c):
     print(json.dumps({"text": t, "class": c}), flush=True)
+
 def switch(mode, dur, manual=False):
-    emit(text(st["mode"]), "fade"); time.sleep(FADE)
+    emit(text(st["mode"]), "fade")
+    time.sleep(FADE)
     st.update(mode=mode, until=time.time() + dur, manual=manual)
     emit(text(mode), mode)
     return text(mode)
-signal.signal(signal.SIGUSR1, lambda *_: st.__setitem__("click", True))
-signal.signal(signal.SIGUSR2, lambda *_: st.__setitem__("revert", True))
-last = text("time"); emit(last, "time")
+
+signal.signal(signal.SIGUSR1, lambda *_: st.update(click=True))
+signal.signal(signal.SIGUSR2, lambda *_: st.update(revert=True))
+
+last = text("time")
+emit(last, "time")
 while True:
-    if st["revert"]:
-        st["revert"] = False; st["click"] = False
-        if st["mode"] == "date": last = switch("time", TIME_SECS)
-    elif st["click"]:
-        st["click"] = False
-        if st["mode"] == "date" and st["manual"]: last = switch("time", TIME_SECS)
-        else: last = switch("date", MANUAL_SECS, True)
-    elif time.time() >= st["until"]:
-        last = switch("date", DATE_SECS) if st["mode"] == "time" else switch("time", TIME_SECS)
-    else:
-        t = text(st["mode"])
-        if t != last: last = t; emit(t, st["mode"])
-    time.sleep(0.05)
+    try:
+        if st["revert"]:
+            st.update(revert=False, click=False)
+            if st["mode"] == "date":
+                last = switch("time", TIME_SECS)
+        elif st["click"]:
+            st["click"] = False
+            if st["mode"] == "date" and st["manual"]:
+                last = switch("time", TIME_SECS)
+            else:
+                last = switch("date", MANUAL_SECS, True)
+        elif time.time() >= st["until"]:
+            last = switch("date", DATE_SECS) if st["mode"] == "time" else switch("time", TIME_SECS)
+        else:
+            t = text(st["mode"])
+            if t != last:
+                last = t
+                emit(t, st["mode"])
+        time.sleep(0.05)
+    except Exception:
+        st.update(mode="time", until=time.time() + TIME_SECS, manual=False)
+        last = text("time"); emit(last, "time")

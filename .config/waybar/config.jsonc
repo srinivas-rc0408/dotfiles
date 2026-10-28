@@ -175,6 +175,7 @@
     "on-click": "~/.local/bin/s10-clock",
     "tooltip": false,
     "format": "{}",
-    "align": 0.5
+    "align": 0.5,
+    "restart-interval": 1
   }
 }
