@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+import calendar, datetime, os, select, sys, termios, tty
+W = "\033[97m"; G = "\033[38;5;245m"; D = "\033[38;5;240m"; B = "\033[1m"; R = "\033[0m"
+INV = "\033[48;5;255m\033[38;5;233m\033[1m"
+def draw(y, m):
+    now = datetime.datetime.now()
+    out = ["\033[H\033[2J\033[?25l", "\n"]
+    out.append(f"  {B}{W}{now:%I:%M}{R}{G}:{now:%S} {now:%p}{R}\n")
+    out.append(f"  {G}{now:%A, %d %B %Y}{R}\n\n")
+    out.append(f"  {B}{W}{calendar.month_name[m]} {y}{R}\n\n")
+    out.append("  " + " ".join(f"{G}{d}{R}" for d in ["Mo","Tu","We","Th","Fr","Sa","Su"]) + "\n")
+    for wk in calendar.Calendar(0).monthdayscalendar(y, m):
+        row = []
+        for i, d in enumerate(wk):
+            if d == 0: row.append("  ")
+            elif (y, m, d) == (now.year, now.month, now.day): row.append(f"{INV}{d:>2}{R}")
+            elif i >= 5: row.append(f"{D}{d:>2}{R}")
+            else: row.append(f"{W}{d:>2}{R}")
+        out.append("  " + " ".join(row) + "\n")
+    out.append(f"\n  {D}← → month   t today   esc close{R}")
+    sys.stdout.write("".join(out)); sys.stdout.flush()
+fd = sys.stdin.fileno(); old = termios.tcgetattr(fd); tty.setcbreak(fd)
+t = datetime.date.today(); y, m = t.year, t.month
+try:
+    while True:
+        draw(y, m)
+        r, _, _ = select.select([sys.stdin], [], [], 1)
+        if not r: continue
+        k = os.read(fd, 8)
+        if k in (b"\x1b", b"q"): break
+        if k in (b"\x1b[D", b"h"): m -= 1
+        if k in (b"\x1b[C", b"l"): m += 1
+        if k == b"t": y, m = t.year, t.month
+        if m < 1: y, m = y - 1, 12
+        if m > 12: y, m = y + 1, 1
+finally:
+    termios.tcsetattr(fd, termios.TCSADRAIN, old)

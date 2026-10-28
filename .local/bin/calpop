@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+pkill -f "kitty --class s10-cal" && exit 0
+setsid -f kitty --class s10-cal -o background_opacity=0.55 -o font_size=12 \
+  -o "font_family=JetBrainsMono Nerd Font" -o window_padding_width=14 \
+  -o confirm_os_window_close=0 -o remember_window_size=no \
+  -o initial_window_width=27c -o initial_window_height=14c \
+  "$HOME/.local/bin/calview" >/dev/null 2>&1

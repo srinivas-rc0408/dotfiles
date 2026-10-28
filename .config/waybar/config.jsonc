@@ -34,7 +34,7 @@
     "format": "󰥔 {:%I:%M %p}",
     "format-alt": "󰃭 {:%A, %d %B %Y}",
     "tooltip-format": "<span size=\"x-large\" weight=\"bold\">{:%I:%M %p}</span>\n<span foreground=\"#9a9aa2\">{:%A, %d %B %Y}</span>\n\n<tt>{calendar}</tt>",
-    "tooltip": true,
+    "tooltip": false,
     "calendar": {
       "mode": "month",
       "mode-mon-col": 3,
@@ -52,7 +52,8 @@
       "on-click-right": "mode",
       "on-scroll-up": "shift_down",
       "on-scroll-down": "shift_up"
-    }
+    },
+    "on-click": "~/.local/bin/calpop"
   },
   "mpris": {
     "format": "{status_icon} {title}",

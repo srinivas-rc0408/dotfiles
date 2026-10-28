@@ -389,6 +389,7 @@ window-rule {
 }
 
 binds {
+    Mod+Space repeat=false hotkey-overlay-title="Calendar" { spawn "~/.local/bin/calpop"; }
     Ctrl+Mod+Alt+M hotkey-overlay-title="Visualizer on/off" { spawn "~/.local/bin/viz-toggle"; }
     // ── launch ───────────────────────────────────────────
     XF86Tools repeat=false hotkey-overlay-title="App launcher (tap Win)" { spawn "~/.local/bin/launcher"; }
@@ -555,6 +556,29 @@ window-rule {
     match app-id=r#"(?i)pavucontrol|nm-connection-editor|blueman|bottles|easyeffects"#
     opacity 0.85
     draw-border-with-background false
+    background-effect {
+        blur true
+    }
+}
+
+layer-rule {
+    match namespace="^waybar$"
+    popups {
+        geometry-corner-radius 16
+        background-effect {
+            blur true
+        }
+    }
+}
+
+window-rule {
+    match app-id="^s10-cal$"
+    open-floating true
+    default-floating-position x=0 y=50 relative-to="top"
+    geometry-corner-radius 16
+    clip-to-geometry true
+    focus-ring { off; }
+    border { off; }
     background-effect {
         blur true
     }
