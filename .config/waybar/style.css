@@ -52,6 +52,7 @@ tooltip label {
   padding: 12px 16px;
 }
 
-#custom-clock { transition: color 140ms ease-out, padding 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+#custom-clock { transition: color 160ms cubic-bezier(0.4, 0, 0.2, 1); }
 #custom-clock.fade { color: transparent; }
-#custom-clock.date { padding-left: 16px; padding-right: 16px; }
+#custom-clock.date { color: rgba(255, 255, 255, 0.88); }

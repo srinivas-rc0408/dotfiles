@@ -1,0 +1,2 @@
+#!/bin/sh
+niri msg --json windows | grep -q "dev.s10.dash" && exec "$HOME/.local/bin/s10-dash-toggle"

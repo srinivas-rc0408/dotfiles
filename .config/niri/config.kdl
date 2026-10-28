@@ -389,6 +389,7 @@ window-rule {
 }
 
 binds {
+    XF86Launch5 hotkey-overlay-title=null { spawn "~/.local/bin/s10-dash-close"; }
     Alt+Space repeat=false hotkey-overlay-title="Dashboard" { spawn "~/.local/bin/s10-dash-toggle"; }
     Mod+Space repeat=false hotkey-overlay-title="Dashboard" { spawn "~/.local/bin/s10-dash-toggle"; }
     Ctrl+Mod+Alt+M hotkey-overlay-title="Visualizer on/off" { spawn "~/.local/bin/viz-toggle"; }

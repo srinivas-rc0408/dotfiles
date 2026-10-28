@@ -170,12 +170,10 @@
     "on-click": "asusctl profile next >/dev/null; pkill -RTMIN+8 waybar"
   },
   "custom/clock": {
-    "exec": "~/.local/bin/s10-clock",
-    "interval": 2,
-    "signal": 9,
-    "on-click": "~/.local/bin/s10-clock click",
+    "exec": "~/.local/bin/s10-clockd",
+    "return-type": "json",
+    "on-click": "~/.local/bin/s10-clock",
     "tooltip": false,
-    "format": "{}",
-    "return-type": "json"
+    "format": "{}"
   }
 }
