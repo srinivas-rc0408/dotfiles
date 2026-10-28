@@ -33,7 +33,26 @@
   "clock": {
     "format": "󰥔 {:%I:%M %p}",
     "format-alt": "󰃭 {:%A, %d %B %Y}",
-    "tooltip-format": "<tt>{calendar}</tt>"
+    "tooltip-format": "<span size=\"x-large\" weight=\"bold\">{:%I:%M %p}</span>\n<span foreground=\"#9a9aa2\">{:%A, %d %B %Y}</span>\n\n<tt>{calendar}</tt>",
+    "tooltip": true,
+    "calendar": {
+      "mode": "month",
+      "mode-mon-col": 3,
+      "weeks-pos": "left",
+      "on-scroll": 1,
+      "format": {
+        "months": "<span color=\"#ffffff\"><b>{}</b></span>",
+        "days": "<span color=\"#d0d0d4\">{}</span>",
+        "weeks": "<span color=\"#5c5c64\">{}</span>",
+        "weekdays": "<span color=\"#8a8a94\"><b>{}</b></span>",
+        "today": "<span color=\"#0c0c0e\" background=\"#ffffff\"><b>{}</b></span>"
+      }
+    },
+    "actions": {
+      "on-click-right": "mode",
+      "on-scroll-up": "shift_down",
+      "on-scroll-down": "shift_up"
+    }
   },
   "mpris": {
     "format": "{status_icon} {title}",
