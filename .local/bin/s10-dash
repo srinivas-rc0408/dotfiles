@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# S10 Dash: clock | calendar | music | wallpapers  (GTK4, toggles on relaunch)
+# S10 Dash: clock | calendar | music | wallpapers  (GTK4, resident, toggles on relaunch)
 import datetime, glob, hashlib, math, os, shutil, subprocess, sys, threading
 import gi
 gi.require_version("Gtk", "4.0")
@@ -9,8 +9,8 @@ gi.require_version("Pango", "1.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 HOME = os.path.expanduser("~")
-WALL_DIRS = [f"{HOME}/Pictures/wallpaper", f"{HOME}/Pictures/wallpapers",
-             f"{HOME}/Pictures/Wallpapers", f"{HOME}/Wallpapers"]
+WALL_DIRS = sorted({d for p in ("*", "*/*", "*/*/*") for d in glob.glob(f"{HOME}/{p}")
+                    if os.path.isdir(d) and os.path.basename(d).lower().startswith("wallpaper")})
 CURRENT = f"{HOME}/Pictures/wall.jpg"
 THUMBS = f"{HOME}/.cache/s10-dash/thumbs"
 os.makedirs(THUMBS, exist_ok=True)
@@ -22,11 +22,6 @@ window.dash { background: transparent; }
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 22px;
   padding: 16px;
-  animation: rise 280ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes rise {
-  from { opacity: 0; transform: translateY(-14px) scale(0.98); }
-  to   { opacity: 1; transform: none; }
 }
 .card {
   background: rgba(255, 255, 255, 0.045);
@@ -122,19 +117,19 @@ class Dash(Gtk.ApplicationWindow):
         panel.append(self.wall_card())
 
         keys = Gtk.EventControllerKey()
-        keys.connect("key-pressed", lambda c, kv, kc, st: (self.close(), True)[1] if kv == Gdk.KEY_Escape else False)
+        keys.connect("key-pressed", lambda c, kv, kc, st: (self.set_visible(False), True)[1] if kv == Gdk.KEY_Escape else False)
         self.add_controller(keys)
         self.connect("notify::is-active", self.on_active)
 
         GLib.timeout_add(33, self.tick_clock)
         GLib.timeout_add(1000, self.tick_slow)
-        self.tick_slow()
 
     def on_active(self, *_):
         if self.is_active():
             self._was_active = True
         elif self._was_active:
-            self.close()
+            self._was_active = False
+            self.set_visible(False)
 
     def caption(self, text):
         l = Gtk.Label(label=text, xalign=0)
@@ -191,7 +186,7 @@ class Dash(Gtk.ApplicationWindow):
         cr.set_source_rgba(0.05, 0.05, 0.06, 1); cr.arc(cx, cy, 1.4, 0, 2 * math.pi); cr.fill()
 
     def tick_clock(self):
-        self.face.queue_draw()
+        if self.get_visible(): self.face.queue_draw()
         return True
 
     def calendar_card(self):
@@ -210,8 +205,11 @@ class Dash(Gtk.ApplicationWindow):
         box.append(self.caption("now playing"))
         top = Gtk.Box(spacing=12)
         frame = Gtk.Box(); frame.add_css_class("artbox"); frame.set_overflow(Gtk.Overflow.HIDDEN)
+        frame.set_size_request(64, 64); frame.set_valign(Gtk.Align.CENTER)
         self.art = Gtk.Picture(); self.art.set_size_request(64, 64)
+        self.art.set_can_shrink(True); self.art.set_hexpand(False); self.art.set_vexpand(False)
         self.art.set_content_fit(Gtk.ContentFit.COVER)
+        self._art_src = None
         frame.append(self.art)
         top.append(frame)
         info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3, valign=Gtk.Align.CENTER)
@@ -234,6 +232,7 @@ class Dash(Gtk.ApplicationWindow):
         return box
 
     def tick_slow(self):
+        if not self.get_visible(): return True
         now = datetime.datetime.now()
         self.l_time.set_label(now.strftime("%I:%M"))
         self.l_secs.set_label(now.strftime(" %p"))
@@ -246,8 +245,15 @@ class Dash(Gtk.ApplicationWindow):
             self.l_artist.set_label(meta[1] or "")
             art = meta[2]
             if art.startswith("file://"):
-                self.art.set_filename(GLib.filename_from_uri(art)[0])
+                if art != self._art_src:
+                    self._art_src = art
+                    try:
+                        pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(GLib.filename_from_uri(art)[0], 128, 128, True)
+                        self.art.set_paintable(Gdk.Texture.new_for_pixbuf(pb))
+                    except Exception:
+                        self.art.set_paintable(None)
             else:
+                self._art_src = None
                 self.art.set_paintable(None)
             self.b_play.set_icon_name("media-playback-pause-symbolic" if st == "Playing" else "media-playback-start-symbolic")
         else:
@@ -324,11 +330,17 @@ class App(Gtk.Application):
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
     def do_activate(self):
-        if self.win:
-            self.win.close(); return
-        self.win = Dash(self)
-        self.win.connect("close-request", lambda *_: (self.quit(), False)[1])
+        first = self.win is None
+        if first:
+            self.hold()
+            self.win = Dash(self)
+            self.win.connect("close-request", lambda w: (w.set_visible(False), True)[1])
+            if "--hidden" in sys.argv:
+                return
+        elif self.win.get_visible():
+            self.win.set_visible(False); return
         self.win.present()
+        self.win.tick_slow()
 
 if __name__ == "__main__":
-    sys.exit(App().run(None))
+    sys.exit(App().run([sys.argv[0]]))
