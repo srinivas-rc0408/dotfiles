@@ -175,6 +175,7 @@
     "signal": 9,
     "on-click": "~/.local/bin/s10-clock click",
     "tooltip": false,
-    "format": "{}"
+    "format": "{}",
+    "return-type": "json"
   }
 }

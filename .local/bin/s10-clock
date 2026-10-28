@@ -1,12 +1,16 @@
 #!/bin/sh
-S=/tmp/s10-clock-date; P=/tmp/s10-clock-pending
+S=/tmp/s10-clock-date; P=/tmp/s10-clock-pending; F=/tmp/s10-clock-fade
+sig() { pkill -RTMIN+9 waybar; }
 if [ "$1" = click ]; then
   if [ -e "$P" ]; then rm -f "$P"; exec "$HOME/.local/bin/s10-dash-toggle"; fi
-  touch "$P"; sleep 0.28
+  touch "$P"; sleep 0.2
   [ -e "$P" ] || exit 0
   rm -f "$P"
+  touch "$F"; sig; sleep 0.14
   if [ -e "$S" ]; then rm -f "$S"; else touch "$S"; fi
-  pkill -RTMIN+9 waybar
-else
-  if [ -e "$S" ]; then date "+  %A, %d %B %Y"; else date "+  %I:%M %p"; fi
+  rm -f "$F"; sig
+  exit 0
 fi
+if [ -e "$S" ]; then t=$(date "+  %A, %d %B"); c=date; else t=$(date "+  %I:%M %p"); c=time; fi
+[ -e "$F" ] && c=fade
+printf "{\"text\": \"%s\", \"class\": \"%s\"}\n" "$t" "$c"
