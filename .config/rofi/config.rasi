@@ -192,3 +192,24 @@ textbox-motto {
     text-color: @dim;
     horizontal-align: 0.5;
 }
+
+/* ---- S10 polish v3 ---- */
+* { font: "Inter Medium 10.5"; }
+window { background-color: rgba(10, 10, 12, 0.86); border: 1px; border-color: rgba(255, 255, 255, 0.09); border-radius: 28px; padding: 20px; }
+mainbox { spacing: 16px; }
+inputbar { padding: 12px 16px; spacing: 10px; background-color: rgba(255, 255, 255, 0.05); border: 1px; border-color: rgba(255, 255, 255, 0.08); border-radius: 14px; }
+entry, icon-search, num-filtered-rows, textbox, button { background-color: transparent; }
+entry { placeholder-color: rgba(255, 255, 255, 0.38); text-color: #ffffff; font: "Inter 11"; }
+button-bolt { padding: 0 14px; background-color: rgba(255, 255, 255, 0.05); border: 1px; border-color: rgba(255, 255, 255, 0.08); border-radius: 14px; }
+listview { spacing: 8px; padding: 2px; }
+element { padding: 16px 8px 12px 8px; spacing: 10px; border-radius: 16px; }
+element, element normal.normal, element alternate.normal, element normal.active, element alternate.active, element normal.urgent, element alternate.urgent { background-color: transparent; border-color: transparent; }
+element-icon, element-text { background-color: transparent; }
+element-icon { size: 44px; }
+element-text { font: "Inter 10"; text-color: rgba(255, 255, 255, 0.55); horizontal-align: 0.5; }
+element selected.normal, element selected.active { background-color: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.14); }
+element selected.normal element-text, element selected.active element-text { text-color: #ffffff; font: "Inter SemiBold 10"; }
+box-bottom { padding: 16px 16px 12px 16px; spacing: 4px; background-color: rgba(255, 255, 255, 0.03); border: 1px; border-color: rgba(255, 255, 255, 0.07); border-radius: 20px; }
+box-hero { padding: 86px 0; }
+textbox-quote { font: "Inter Light Italic 10.5"; text-color: rgba(255, 255, 255, 0.85); horizontal-align: 0.5; }
+textbox-motto { font: "Inter Medium 8.5"; text-color: rgba(255, 255, 255, 0.40); horizontal-align: 0.5; }
