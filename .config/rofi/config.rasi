@@ -214,4 +214,3 @@ textbox-motto { font: "Inter Medium 8.5"; text-color: rgba(255, 255, 255, 0.40);
 box-bottom { background-color: rgba(255, 255, 255, 0.03); border: 1px; border-color: rgba(255, 255, 255, 0.07); border-radius: 20px; }
 box-hero { margin: 40px 0 0 0; }
 box-hero { margin: 0; padding: 110px 0; }
-box-bottom { spacing: 14px; padding: 16px 0 14px 0; }
