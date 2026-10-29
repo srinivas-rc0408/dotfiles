@@ -236,3 +236,10 @@ element-text { text-color: rgba(255, 255, 255, 0.70); }
 box-bottom { background-color: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.08); border-radius: 20px; }
 textbox-quote { text-color: rgba(255, 255, 255, 0.82); }
 box-hero { padding: 112px 0; }
+
+/* ---- clear glass ---- */
+window { background-color: rgba(20, 24, 32, 0.14); border-color: rgba(255, 255, 255, 0.16); }
+inputbar, button-bolt { background-color: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.14); }
+element selected.normal, element selected.active { background-color: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.22); }
+element-text { text-color: rgba(255, 255, 255, 0.85); }
+box-bottom { background-color: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.12); }
