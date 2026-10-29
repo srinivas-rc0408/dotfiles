@@ -495,7 +495,7 @@ layer-rule {
     match namespace="^rofi$"
     background-effect {
         blur true
-        xray false
+        xray true
         noise 0.03
         saturation 1.4
     }
