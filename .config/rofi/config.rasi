@@ -209,7 +209,6 @@ element-icon { size: 44px; }
 element-text { font: "Inter 10"; text-color: rgba(255, 255, 255, 0.55); horizontal-align: 0.5; }
 element selected.normal, element selected.active { background-color: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.14); }
 element selected.normal element-text, element selected.active element-text { text-color: #ffffff; font: "Inter SemiBold 10"; }
-box-bottom { padding: 16px 16px 12px 16px; spacing: 4px; background-color: rgba(255, 255, 255, 0.03); border: 1px; border-color: rgba(255, 255, 255, 0.07); border-radius: 20px; }
-box-hero { padding: 86px 0; }
 textbox-quote { font: "Inter Light Italic 10.5"; text-color: rgba(255, 255, 255, 0.85); horizontal-align: 0.5; }
 textbox-motto { font: "Inter Medium 8.5"; text-color: rgba(255, 255, 255, 0.40); horizontal-align: 0.5; }
+box-bottom { background-color: rgba(255, 255, 255, 0.03); border: 1px; border-color: rgba(255, 255, 255, 0.07); border-radius: 20px; }
