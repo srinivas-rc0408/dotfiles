@@ -235,3 +235,4 @@ element selected.normal, element selected.active { background-color: rgba(255, 2
 element-text { text-color: rgba(255, 255, 255, 0.70); }
 box-bottom { background-color: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.08); border-radius: 20px; }
 textbox-quote { text-color: rgba(255, 255, 255, 0.82); }
+box-hero { padding: 112px 0; }
