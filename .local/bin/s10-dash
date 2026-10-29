@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# S10 Dash: clock | calendar | music | wallpapers  (GTK4, resident, toggles on relaunch)
-import datetime, glob, hashlib, math, os, shutil, subprocess, sys, threading
+# S10 Dash: clock | calendar | music | wallpapers (Images / Live). GTK4, resident, toggled over D-Bus.
+import datetime, glob, hashlib, json, math, os, shutil, socket, subprocess, sys, threading
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
@@ -11,27 +11,21 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 HOME = os.path.expanduser("~")
 WALL_DIRS = sorted({d for p in ("*", "*/*", "*/*/*") for d in glob.glob(f"{HOME}/{p}")
                     if os.path.isdir(d) and os.path.basename(d).lower().startswith("wallpaper")})
-CURRENT = f"{HOME}/Pictures/wall.jpg"
-THUMBS = f"{HOME}/.cache/s10-dash/thumbs"
 VDIR = f"{HOME}/Videos/wallpapers"
+CURRENT = f"{HOME}/Pictures/wall.jpg"
 VLINK = f"{HOME}/.config/s10/video-wall"
 VWALL = f"{HOME}/.local/bin/s10-vwall"
+SOCK = "/tmp/s10-mpv.sock"
+THUMBS = f"{HOME}/.cache/s10-dash/thumbs"
 os.makedirs(THUMBS, exist_ok=True)
+os.makedirs(os.path.dirname(VLINK), exist_ok=True)
 
 CSS = """
 window.dash { background: transparent; }
-.panel {
-  background: rgba(14, 14, 18, 0.66);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 22px;
-  padding: 16px;
-}
-.card {
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 16px;
-  padding: 12px 14px;
-}
+.panel { background: rgba(14, 14, 18, 0.66); border: 1px solid rgba(255, 255, 255, 0.10);
+         border-radius: 22px; padding: 16px; }
+.card { background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 16px; padding: 12px 14px; }
 .cap { color: rgba(255, 255, 255, 0.42); font-size: 10px; font-weight: 700; letter-spacing: 1px; }
 .time { color: #ffffff; font-size: 22px; font-weight: 800; }
 .secs { color: rgba(255, 255, 255, 0.45); font-size: 14px; font-weight: 700; }
@@ -50,26 +44,28 @@ calendar > grid > label.day-number:selected { background: rgba(255,255,255,0.18)
 .track { color: #ffffff; font-size: 13px; font-weight: 700; }
 .artist { color: rgba(255, 255, 255, 0.55); font-size: 11px; }
 .artbox { border-radius: 12px; background: rgba(255,255,255,0.06); }
-.mbtn {
-  background: rgba(255, 255, 255, 0.07); border: none; box-shadow: none;
-  border-radius: 999px; min-width: 34px; min-height: 34px; color: #ffffff;
-  transition: background 140ms ease, transform 140ms ease;
-}
+.mbtn { background: rgba(255, 255, 255, 0.07); border: none; box-shadow: none; border-radius: 999px;
+        min-width: 34px; min-height: 34px; color: #ffffff; transition: background 140ms ease, transform 140ms ease; }
 .mbtn:hover { background: rgba(255, 255, 255, 0.16); transform: scale(1.06); }
 .mbtn:active { transform: scale(0.94); }
 .mbtn.play { background: #ffffff; color: #0c0c0e; min-width: 40px; min-height: 40px; }
-.thumb {
-  padding: 0; border: 2px solid transparent; border-radius: 12px;
-  background: transparent; box-shadow: none;
-  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 200ms ease, box-shadow 200ms ease;
-}
-.thumb:hover { transform: scale(1.07); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55); border-color: rgba(255,255,255,0.35); }
+.seg { background: rgba(255, 255, 255, 0.06); border-radius: 999px; padding: 3px; }
+.seg button { background: transparent; border: none; box-shadow: none; border-radius: 999px;
+              color: rgba(255, 255, 255, 0.55); font-size: 11px; font-weight: 700; min-height: 22px;
+              padding: 2px 14px; transition: background 220ms ease, color 220ms ease; }
+.seg button:hover { color: #ffffff; }
+.seg button:checked { background: #ffffff; color: #0c0c0e; }
+.thumb { padding: 0; border: 2px solid transparent; border-radius: 12px; background: transparent; box-shadow: none;
+         transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 200ms ease, box-shadow 200ms ease; }
+.thumb:hover { transform: scale(1.05); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55); border-color: rgba(255,255,255,0.35); }
+.thumb:active { transform: scale(0.98); }
 .thumb.active { border-color: #ffffff; }
 .thumb picture { border-radius: 10px; }
+.vbadge { background: rgba(0,0,0,0.55); color: #ffffff; border-radius: 999px; padding: 2px 7px;
+          font-size: 9px; font-weight: 800; margin: 6px; }
+.thumb:hover .vbadge, .thumb.active .vbadge { background: #ffffff; color: #0c0c0e; }
 .empty { color: rgba(255, 255, 255, 0.45); font-size: 11px; }
 scrollbar { opacity: 0; }
-.vbadge { background: rgba(0,0,0,0.55); color: #ffffff; border-radius: 999px; padding: 2px 7px; font-size: 9px; font-weight: 800; margin: 6px; }
-.thumb:hover .vbadge { background: #ffffff; color: #0c0c0e; }
 """
 
 def sh(*args):
@@ -78,35 +74,57 @@ def sh(*args):
     except Exception:
         return ""
 
-def thumb_for(path):
-    key = hashlib.md5(f"{path}{os.path.getmtime(path)}".encode()).hexdigest()
-    out = f"{THUMBS}/{key}.png"
-    if not os.path.exists(out):
-        pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, 320, 200, True)
-        pb.savev(out, "png", [], [])
-    return out
+def bg(*args):
+    subprocess.Popen(args, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-def set_wallpaper(path, pos):
+def mpv(cmd):
+    try:
+        c = socket.socket(socket.AF_UNIX); c.settimeout(0.3); c.connect(SOCK)
+        c.sendall((json.dumps({"command": cmd}) + "\n").encode()); c.close()
+        return True
+    except Exception:
+        return False
+
+def thumb_for(path, video=False):
+    key = hashlib.md5(f"{path}{os.path.getmtime(path)}".encode()).hexdigest()
+    out = f"{THUMBS}/{'v-' if video else ''}{key}.png"
+    if not os.path.exists(out):
+        if video:
+            subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-ss", "2", "-i", path,
+                            "-frames:v", "1", "-vf", "scale=384:-2", out])
+        else:
+            GdkPixbuf.Pixbuf.new_from_file_at_scale(path, 384, 240, True).savev(out, "png", [], [])
+    return out if os.path.exists(out) else None
+
+def set_image(path):
+    try: shutil.copyfile(path, CURRENT)
+    except Exception: pass
     try: os.remove(VLINK)
     except Exception: pass
-    subprocess.run(["pkill", "-x", "mpvpaper"])
-    try:
-        shutil.copyfile(path, CURRENT)
-    except Exception:
-        pass
-    if shutil.which("swww"):
+    had_video = subprocess.run(["pgrep", "-x", "mpvpaper"], capture_output=True).returncode == 0
+    def work():
         if subprocess.run(["swww", "query"], capture_output=True).returncode != 0:
-            subprocess.Popen(["swww-daemon"], start_new_session=True,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            GLib.usleep(400000)
-        subprocess.Popen(["swww", "img", CURRENT, "--transition-type", "grow",
-                          "--transition-pos", pos, "--transition-duration", "1.1",
-                          "--transition-fps", "120", "--transition-bezier", ".2,.8,.2,1"],
-                         start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    else:
-        subprocess.run(["pkill", "-x", "swaybg"])
-        subprocess.Popen(["swaybg", "-i", CURRENT, "-m", "fill"], start_new_session=True,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            bg("swww-daemon")
+            for _ in range(30):
+                if subprocess.run(["swww", "query"], capture_output=True).returncode == 0: break
+                threading.Event().wait(0.05)
+        a = ["swww", "img", CURRENT, "--transition-fps", "120"]
+        a += (["--transition-type", "none"] if had_video else
+              ["--transition-type", "grow", "--transition-pos", "0.5,0.5",
+               "--transition-duration", "1.1", "--transition-bezier", ".2,.8,.2,1"])
+        subprocess.run(a, capture_output=True)
+        if had_video:
+            threading.Event().wait(0.35)
+            subprocess.run(["pkill", "-x", "mpvpaper"])
+    threading.Thread(target=work, daemon=True).start()
+
+def set_video(path):
+    try:
+        if os.path.islink(VLINK) or os.path.exists(VLINK): os.remove(VLINK)
+        os.symlink(path, VLINK)
+    except Exception: pass
+    if not mpv(["loadfile", path, "replace"]):
+        bg(VWALL)
 
 class Dash(Gtk.ApplicationWindow):
     def __init__(self, app):
@@ -114,81 +132,51 @@ class Dash(Gtk.ApplicationWindow):
         self.add_css_class("dash")
         self.set_decorated(False)
         self.set_resizable(False)
-        self._was_active = False
-
         panel = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         panel.add_css_class("panel")
         self.set_child(panel)
-        panel.append(self.clock_card())
-        panel.append(self.calendar_card())
-        panel.append(self.music_card())
-        panel.append(self.wall_card())
-        panel.append(self.video_card())
-
+        for card in (self.clock_card(), self.calendar_card(), self.music_card(), self.wall_card()):
+            panel.append(card)
         keys = Gtk.EventControllerKey()
-        keys.connect("key-pressed", lambda c, kv, kc, st: (self.set_visible(False), True)[1])
+        keys.connect("key-pressed", lambda *_: (self.set_visible(False), True)[1])
         self.add_controller(keys)
-
         GLib.timeout_add(33, self.tick_clock)
         GLib.timeout_add(1000, self.tick_slow)
 
-    def on_active(self, *_):
-        if self.is_active():
-            self._was_active = True
-        elif self._was_active:
-            self._was_active = False
-            self.set_visible(False)
-
     def caption(self, text):
-        l = Gtk.Label(label=text, xalign=0)
-        l.add_css_class("cap")
-        return l
+        l = Gtk.Label(label=text, xalign=0); l.add_css_class("cap"); return l
 
+    # clock
     def clock_card(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        box.add_css_class("card")
-        self.face = Gtk.DrawingArea()
-        self.face.set_content_width(150)
-        self.face.set_content_height(150)
-        self.face.set_draw_func(self.draw_face)
-        box.append(self.face)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); box.add_css_class("card")
+        self.face = Gtk.DrawingArea(); self.face.set_content_width(150); self.face.set_content_height(150)
+        self.face.set_draw_func(self.draw_face); box.append(self.face)
         row = Gtk.Box(spacing=2, halign=Gtk.Align.CENTER)
         self.l_time = Gtk.Label(); self.l_time.add_css_class("time")
-        self.l_secs = Gtk.Label(); self.l_secs.add_css_class("secs")
-        self.l_secs.set_valign(Gtk.Align.BASELINE)
-        row.append(self.l_time); row.append(self.l_secs)
-        box.append(row)
-        self.l_date = Gtk.Label(); self.l_date.add_css_class("date")
-        box.append(self.l_date)
+        self.l_secs = Gtk.Label(); self.l_secs.add_css_class("secs"); self.l_secs.set_valign(Gtk.Align.BASELINE)
+        row.append(self.l_time); row.append(self.l_secs); box.append(row)
+        self.l_date = Gtk.Label(); self.l_date.add_css_class("date"); box.append(self.l_date)
         return box
 
     def draw_face(self, area, cr, w, h):
         now = datetime.datetime.now()
         cx, cy, r = w / 2, h / 2, min(w, h) / 2 - 3
         cr.set_source_rgba(1, 1, 1, 0.05); cr.arc(cx, cy, r, 0, 2 * math.pi); cr.fill()
-        cr.set_source_rgba(1, 1, 1, 0.22); cr.set_line_width(1.2)
-        cr.arc(cx, cy, r, 0, 2 * math.pi); cr.stroke()
+        cr.set_source_rgba(1, 1, 1, 0.22); cr.set_line_width(1.2); cr.arc(cx, cy, r, 0, 2 * math.pi); cr.stroke()
         for i in range(60):
-            a = math.radians(i * 6 - 90)
-            major = i % 5 == 0
+            a = math.radians(i * 6 - 90); major = i % 5 == 0
             r1 = r - (11 if i % 15 == 0 else 8 if major else 4)
-            cr.set_line_width(2.2 if major else 1)
-            cr.set_source_rgba(1, 1, 1, 0.9 if major else 0.28)
+            cr.set_line_width(2.2 if major else 1); cr.set_source_rgba(1, 1, 1, 0.9 if major else 0.28)
             cr.move_to(cx + r1 * math.cos(a), cy + r1 * math.sin(a))
-            cr.line_to(cx + (r - 3) * math.cos(a), cy + (r - 3) * math.sin(a))
-            cr.stroke()
-        s = now.second + now.microsecond / 1e6
-        m = now.minute + s / 60
-        hr = (now.hour % 12) + m / 60
+            cr.line_to(cx + (r - 3) * math.cos(a), cy + (r - 3) * math.sin(a)); cr.stroke()
+        s = now.second + now.microsecond / 1e6; m = now.minute + s / 60; hr = (now.hour % 12) + m / 60
         cr.set_line_cap(1)
         def hand(angle, length, width, alpha, tail=0):
             a = math.radians(angle - 90)
             cr.set_line_width(width); cr.set_source_rgba(1, 1, 1, alpha)
             cr.move_to(cx - tail * math.cos(a), cy - tail * math.sin(a))
-            cr.line_to(cx + length * math.cos(a), cy + length * math.sin(a))
-            cr.stroke()
-        hand(hr * 30, r * 0.50, 4.2, 1.0)
-        hand(m * 6, r * 0.74, 3.0, 0.95)
+            cr.line_to(cx + length * math.cos(a), cy + length * math.sin(a)); cr.stroke()
+        hand(hr * 30, r * 0.50, 4.2, 1.0); hand(m * 6, r * 0.74, 3.0, 0.95)
         hand(s * 6, r * 0.84, 1.2, 0.75, tail=r * 0.16)
         cr.set_source_rgba(1, 1, 1, 1); cr.arc(cx, cy, 3.6, 0, 2 * math.pi); cr.fill()
         cr.set_source_rgba(0.05, 0.05, 0.06, 1); cr.arc(cx, cy, 1.4, 0, 2 * math.pi); cr.fill()
@@ -197,60 +185,44 @@ class Dash(Gtk.ApplicationWindow):
         if self.get_visible(): self.face.queue_draw()
         return True
 
+    # calendar
     def calendar_card(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        box.add_css_class("card")
-        box.append(self.caption("calendar"))
-        cal = Gtk.Calendar()
-        cal.set_show_week_numbers(False)
-        box.append(cal)
-        return box
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); box.add_css_class("card")
+        box.append(self.caption("calendar")); box.append(Gtk.Calendar()); return box
 
+    # music
     def music_card(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        box.add_css_class("card")
-        box.set_size_request(230, -1)
-        box.append(self.caption("now playing"))
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); box.add_css_class("card")
+        box.set_size_request(230, -1); box.append(self.caption("now playing"))
         top = Gtk.Box(spacing=12)
         frame = Gtk.Box(); frame.add_css_class("artbox"); frame.set_overflow(Gtk.Overflow.HIDDEN)
         frame.set_size_request(64, 64); frame.set_valign(Gtk.Align.CENTER)
-        self.art = Gtk.Picture(); self.art.set_size_request(64, 64)
-        self.art.set_can_shrink(True); self.art.set_hexpand(False); self.art.set_vexpand(False)
-        self.art.set_content_fit(Gtk.ContentFit.COVER)
-        self._art_src = None
-        frame.append(self.art)
-        top.append(frame)
+        self.art = Gtk.Picture(); self.art.set_size_request(64, 64); self.art.set_can_shrink(True)
+        self.art.set_content_fit(Gtk.ContentFit.COVER); self._art_src = None
+        frame.append(self.art); top.append(frame)
         info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3, valign=Gtk.Align.CENTER)
         self.l_track = Gtk.Label(xalign=0, max_width_chars=18, ellipsize=Pango.EllipsizeMode.END); self.l_track.add_css_class("track")
         self.l_artist = Gtk.Label(xalign=0, max_width_chars=20, ellipsize=Pango.EllipsizeMode.END); self.l_artist.add_css_class("artist")
-        info.append(self.l_track); info.append(self.l_artist)
-        top.append(info)
-        box.append(top)
+        info.append(self.l_track); info.append(self.l_artist); top.append(info); box.append(top)
         ctr = Gtk.Box(spacing=10, halign=Gtk.Align.CENTER)
         for icon, cmd, extra in (("media-skip-backward-symbolic", "previous", None),
                                  ("media-playback-start-symbolic", "play-pause", "play"),
                                  ("media-skip-forward-symbolic", "next", None)):
-            b = Gtk.Button.new_from_icon_name(icon)
-            b.add_css_class("mbtn")
-            if extra:
-                b.add_css_class(extra); self.b_play = b
+            b = Gtk.Button.new_from_icon_name(icon); b.add_css_class("mbtn")
+            if extra: b.add_css_class(extra); self.b_play = b
             b.connect("clicked", lambda _b, c=cmd: (sh("playerctl", c), GLib.timeout_add(250, self.tick_slow)))
             ctr.append(b)
-        box.append(ctr)
-        return box
+        box.append(ctr); return box
 
     def tick_slow(self):
         if not self.get_visible(): return True
         now = datetime.datetime.now()
-        self.l_time.set_label(now.strftime("%I:%M"))
-        self.l_secs.set_label(now.strftime(" %p"))
+        self.l_time.set_label(now.strftime("%I:%M")); self.l_secs.set_label(now.strftime(" %p"))
         self.l_date.set_label(now.strftime("%A, %d %B"))
         st = sh("playerctl", "status")
         if st:
-            meta = sh("playerctl", "metadata", "--format", "{{title}}\t{{artist}}\t{{mpris:artUrl}}").split("\t")
-            meta += ["", "", ""]
-            self.l_track.set_label(meta[0] or "Unknown")
-            self.l_artist.set_label(meta[1] or "")
+            meta = (sh("playerctl", "metadata", "--format", "{{title}}\t{{artist}}\t{{mpris:artUrl}}").split("\t") + ["", "", ""])
+            self.l_track.set_label(meta[0] or "Unknown"); self.l_artist.set_label(meta[1] or "")
             art = meta[2]
             if art.startswith("file://"):
                 if art != self._art_src:
@@ -258,132 +230,85 @@ class Dash(Gtk.ApplicationWindow):
                     try:
                         pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(GLib.filename_from_uri(art)[0], 128, 128, True)
                         self.art.set_paintable(Gdk.Texture.new_for_pixbuf(pb))
-                    except Exception:
-                        self.art.set_paintable(None)
+                    except Exception: self.art.set_paintable(None)
             else:
-                self._art_src = None
-                self.art.set_paintable(None)
+                self._art_src = None; self.art.set_paintable(None)
             self.b_play.set_icon_name("media-playback-pause-symbolic" if st == "Playing" else "media-playback-start-symbolic")
         else:
-            self.l_track.set_label("Nothing playing")
-            self.l_artist.set_label("Start a song or video")
-            self.art.set_paintable(None)
-            self.b_play.set_icon_name("media-playback-start-symbolic")
+            self.l_track.set_label("Nothing playing"); self.l_artist.set_label("Start a song or video")
+            self.art.set_paintable(None); self.b_play.set_icon_name("media-playback-start-symbolic")
         return True
 
+    # wallpapers: Images | Live
     def wall_card(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        box.add_css_class("card")
-        box.append(self.caption("wallpaper"))
-        sc = Gtk.ScrolledWindow()
-        sc.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        sc.set_size_request(430, 196)
-        self.flow = Gtk.FlowBox(max_children_per_line=3, min_children_per_line=3,
-                                row_spacing=10, column_spacing=10, homogeneous=True,
-                                selection_mode=Gtk.SelectionMode.NONE)
-        self.flow.set_margin_top(6); self.flow.set_margin_bottom(6)
-        self.flow.set_margin_start(6); self.flow.set_margin_end(6)
-        sc.set_child(self.flow)
-        box.append(sc)
-        self.thumbs = []
-        threading.Thread(target=self.load_walls, daemon=True).start()
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); box.add_css_class("card")
+        head = Gtk.Box(spacing=8)
+        cap = self.caption("wallpaper"); cap.set_hexpand(True); cap.set_valign(Gtk.Align.CENTER); head.append(cap)
+        seg = Gtk.Box(); seg.add_css_class("seg")
+        self.b_img = Gtk.ToggleButton(label="Images"); self.b_live = Gtk.ToggleButton(label="▶ Live")
+        self.b_live.set_group(self.b_img)
+        seg.append(self.b_img); seg.append(self.b_live); head.append(seg); box.append(head)
+        self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.SLIDE_LEFT_RIGHT, transition_duration=280)
+        self.stack.set_interpolate_size(False)
+        self.flow_img = self.grid(); self.flow_live = self.grid()
+        self.stack.add_named(self.wrap(self.flow_img), "img"); self.stack.add_named(self.wrap(self.flow_live), "live")
+        box.append(self.stack)
+        self.b_img.connect("toggled", lambda b: b.get_active() and self.stack.set_visible_child_name("img"))
+        self.b_live.connect("toggled", lambda b: b.get_active() and self.stack.set_visible_child_name("live"))
+        live_on = os.path.islink(VLINK)
+        (self.b_live if live_on else self.b_img).set_active(True)
+        self.stack.set_visible_child_name("live" if live_on else "img")
+        self.items = []
+        threading.Thread(target=self.load_all, daemon=True).start()
         return box
 
-    def load_walls(self):
-        files = []
-        for d in WALL_DIRS:
-            for ext in ("jpg", "jpeg", "png", "webp"):
-                files += glob.glob(f"{d}/*.{ext}") + glob.glob(f"{d}/*.{ext.upper()}")
-        files = sorted(set(files))
-        if not files:
-            GLib.idle_add(self.no_walls)
-            return
-        for f in files:
-            try:
-                t = thumb_for(f)
-                GLib.idle_add(self.add_thumb, f, t)
-            except Exception:
-                pass
+    def grid(self):
+        f = Gtk.FlowBox(max_children_per_line=2, min_children_per_line=2, row_spacing=12, column_spacing=12,
+                        homogeneous=True, selection_mode=Gtk.SelectionMode.NONE)
+        for m in ("top", "bottom", "start", "end"): getattr(f, f"set_margin_{m}")(6)
+        return f
 
-    def no_walls(self):
-        l = Gtk.Label(label="Put images in ~/Pictures/wallpaper", wrap=True)
-        l.add_css_class("empty")
-        self.flow.append(l)
+    def wrap(self, flow):
+        sc = Gtk.ScrolledWindow(); sc.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sc.set_size_request(420, 214); sc.set_child(flow); return sc
 
-    def add_thumb(self, path, thumb):
-        b = Gtk.Button(); b.add_css_class("thumb")
-        pic = Gtk.Picture.new_for_filename(thumb)
-        pic.set_content_fit(Gtk.ContentFit.COVER)
-        pic.set_size_request(128, 80)
-        b.set_child(pic)
-        b.set_tooltip_text(os.path.basename(path))
-        b.connect("clicked", self.pick, path)
-        self.flow.append(b)
-        self.thumbs.append(b)
-
-    def pick(self, btn, path):
-        for t in self.thumbs + getattr(self, "vthumbs", []):
-            t.remove_css_class("active")
-        btn.add_css_class("active")
-        set_wallpaper(path, "0.5,0.5")
-
-    # live (video) wallpapers
-    def video_card(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        box.add_css_class("card")
-        box.append(self.caption("live wallpaper"))
-        sc = Gtk.ScrolledWindow()
-        sc.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        sc.set_size_request(290, 196)
-        self.vflow = Gtk.FlowBox(max_children_per_line=2, min_children_per_line=2,
-                                 row_spacing=10, column_spacing=10, homogeneous=True,
-                                 selection_mode=Gtk.SelectionMode.NONE)
-        for m in ("top", "bottom", "start", "end"):
-            getattr(self.vflow, f"set_margin_{m}")(6)
-        sc.set_child(self.vflow)
-        box.append(sc)
-        self.vthumbs = []
-        threading.Thread(target=self.load_videos, daemon=True).start()
-        return box
-
-    def load_videos(self):
+    def load_all(self):
+        cur_v = os.path.realpath(VLINK) if os.path.islink(VLINK) else ""
         vids = sorted(glob.glob(f"{VDIR}/*.mp4"))
-        if not vids:
-            GLib.idle_add(lambda: self.vflow.append(Gtk.Label(label="Add .mp4 files to ~/Videos/wallpapers", wrap=True, css_classes=["empty"])))
-            return
-        try: cur = os.path.realpath(VLINK) if os.path.islink(VLINK) else ""
-        except Exception: cur = ""
+        imgs = sorted({f for d in WALL_DIRS for e in ("jpg", "jpeg", "png", "webp", "JPG", "JPEG", "PNG")
+                       for f in glob.glob(f"{d}/*.{e}")})
+        if not vids: GLib.idle_add(self.empty, self.flow_live, "Add .mp4 files to ~/Videos/wallpapers")
+        if not imgs: GLib.idle_add(self.empty, self.flow_img, "Put images in a folder named wallpaper")
         for v in vids:
-            key = hashlib.md5(f"{v}{os.path.getmtime(v)}".encode()).hexdigest()
-            t = f"{THUMBS}/v-{key}.png"
-            if not os.path.exists(t):
-                subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-ss", "2", "-i", v,
-                                "-frames:v", "1", "-vf", "scale=320:-2", t])
-            if os.path.exists(t):
-                GLib.idle_add(self.add_vthumb, v, t, os.path.realpath(v) == cur)
+            t = thumb_for(v, True)
+            if t: GLib.idle_add(self.add, self.flow_live, v, t, True, os.path.realpath(v) == cur_v)
+        for i in imgs:
+            try:
+                t = thumb_for(i)
+                if t: GLib.idle_add(self.add, self.flow_img, i, t, False, False)
+            except Exception: pass
 
-    def add_vthumb(self, path, thumb, active):
+    def empty(self, flow, text):
+        l = Gtk.Label(label=text, wrap=True); l.add_css_class("empty"); flow.append(l)
+
+    def add(self, flow, path, thumb, live, active):
         b = Gtk.Button(); b.add_css_class("thumb")
         ov = Gtk.Overlay()
-        pic = Gtk.Picture.new_for_filename(thumb)
-        pic.set_content_fit(Gtk.ContentFit.COVER); pic.set_size_request(128, 80)
-        ov.set_child(pic)
-        badge = Gtk.Label(label="\u25b6 LIVE", halign=Gtk.Align.START, valign=Gtk.Align.END)
-        badge.add_css_class("vbadge")
-        ov.add_overlay(badge)
+        pic = Gtk.Picture.new_for_filename(thumb); pic.set_content_fit(Gtk.ContentFit.COVER)
+        pic.set_size_request(186, 104); ov.set_child(pic)
+        if live:
+            badge = Gtk.Label(label="▶ LIVE", halign=Gtk.Align.START, valign=Gtk.Align.END)
+            badge.add_css_class("vbadge"); ov.add_overlay(badge)
         b.set_child(ov)
-        b.set_tooltip_text(os.path.basename(path)[:-4].replace("-", " "))
+        b.set_tooltip_text(os.path.splitext(os.path.basename(path))[0].replace("-", " "))
         if active: b.add_css_class("active")
-        b.connect("clicked", self.pick_video, path)
-        self.vflow.append(b)
-        self.vthumbs.append(b)
+        b.connect("clicked", self.pick, path, live)
+        flow.append(b); self.items.append(b)
 
-    def pick_video(self, btn, path):
-        for t in self.thumbs + self.vthumbs:
-            t.remove_css_class("active")
+    def pick(self, btn, path, live):
+        for t in self.items: t.remove_css_class("active")
         btn.add_css_class("active")
-        subprocess.Popen([VWALL, path], start_new_session=True,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        set_video(path) if live else set_image(path)
 
 class App(Gtk.Application):
     def __init__(self):
@@ -392,24 +317,22 @@ class App(Gtk.Application):
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
-        p = Gtk.CssProvider(); p.load_from_string(CSS) if hasattr(p, "load_from_string") else p.load_from_data(CSS.encode())
+        p = Gtk.CssProvider()
+        p.load_from_string(CSS) if hasattr(p, "load_from_string") else p.load_from_data(CSS.encode())
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), p, Gtk.STYLE_PROVIDER_PRIORITY_USER)
         act = Gio.SimpleAction.new("toggle", None)
         act.connect("activate", lambda *_: self.do_activate())
         self.add_action(act)
 
     def do_activate(self):
-        first = self.win is None
-        if first:
+        if self.win is None:
             self.hold()
             self.win = Dash(self)
             self.win.connect("close-request", lambda w: (w.set_visible(False), True)[1])
-            if "--hidden" in sys.argv:
-                return
+            if "--hidden" in sys.argv: return
         elif self.win.get_visible():
             self.win.set_visible(False); return
-        self.win.present()
-        self.win.tick_slow()
+        self.win.present(); self.win.tick_slow()
 
 if __name__ == "__main__":
     sys.exit(App().run([sys.argv[0]]))
