@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+# S10 calendar reminders: notifies the day before and on the day (from 08:00), once each.
+import datetime, json, os, subprocess
+H = os.path.expanduser("~")
+EVENTS = f"{H}/.local/share/s10/events.json"
+SEEN = f"{H}/.local/share/s10/notified.json"
+now = datetime.datetime.now()
+if now.hour < 8: raise SystemExit
+try: ev = json.load(open(EVENTS))
+except Exception: raise SystemExit
+try: seen = set(json.load(open(SEEN)))
+except Exception: seen = set()
+today = now.date(); tomorrow = today + datetime.timedelta(days=1)
+for day, label, urg in ((today, "Today", "critical"), (tomorrow, "Tomorrow", "normal")):
+    for e in ev.get(day.isoformat(), []):
+        tag = f"{day.isoformat()}|{e.get('id', e.get('title'))}|{label}"
+        if tag in seen: continue
+        head = f"{label}{' · ' + e['time'] if e.get('time') else ''}: {e.get('title', 'Event')}"
+        body = e.get("note") or day.strftime("%A, %d %B")
+        subprocess.run(["notify-send", "-a", "Calendar", "-i", "x-office-calendar", "-u", urg, head, body])
+        seen.add(tag)
+cutoff = (today - datetime.timedelta(days=3)).isoformat()
+seen = sorted(t for t in seen if t[:10] >= cutoff)
+json.dump(seen, open(SEEN, "w"))

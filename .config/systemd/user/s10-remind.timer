@@ -1,0 +1,10 @@
+[Unit]
+Description=Check S10 calendar reminders
+
+[Timer]
+OnStartupSec=45s
+OnCalendar=*:0/15
+Persistent=true
+
+[Install]
+WantedBy=timers.target

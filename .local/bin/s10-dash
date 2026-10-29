@@ -17,6 +17,16 @@ VLINK = f"{HOME}/.config/s10/video-wall"
 VWALL = f"{HOME}/.local/bin/s10-vwall"
 SOCK = "/tmp/s10-mpv.sock"
 THUMBS = f"{HOME}/.cache/s10-dash/thumbs"
+EVENTS = f"{HOME}/.local/share/s10/events.json"
+os.makedirs(os.path.dirname(EVENTS), exist_ok=True)
+
+def load_events():
+    try: return json.load(open(EVENTS))
+    except Exception: return {}
+
+def save_events(ev):
+    ev = {k: v for k, v in ev.items() if v}
+    tmp = EVENTS + ".tmp"; json.dump(ev, open(tmp, "w"), indent=1, ensure_ascii=False); os.replace(tmp, EVENTS)
 os.makedirs(THUMBS, exist_ok=True)
 os.makedirs(os.path.dirname(VLINK), exist_ok=True)
 
@@ -66,6 +76,31 @@ calendar > grid > label.day-number:selected { background: rgba(255,255,255,0.18)
 .thumb:hover .vbadge, .thumb.active .vbadge { background: #ffffff; color: #0c0c0e; }
 .empty { color: rgba(255, 255, 255, 0.45); font-size: 11px; }
 scrollbar { opacity: 0; }
+calendar > grid > label.day-number:checked { box-shadow: inset 0 -2px rgba(255, 255, 255, 0.85); font-weight: 800; color: #ffffff; }
+calendar > grid > label.today:checked { box-shadow: inset 0 -2px #0c0c0e; }
+popover.evpop > contents { background: rgba(16, 16, 20, 0.94); border: 1px solid rgba(255, 255, 255, 0.10);
+                           border-radius: 16px; padding: 14px; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55); }
+popover.evpop > arrow { background: rgba(16, 16, 20, 0.94); border: 1px solid rgba(255, 255, 255, 0.10); }
+.evhead { color: #ffffff; font-size: 13px; font-weight: 800; }
+.evsub { color: rgba(255, 255, 255, 0.45); font-size: 11px; }
+.evrow { background: rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 8px 10px; }
+.evtitle { color: #ffffff; font-size: 12px; font-weight: 700; }
+.evtime { color: rgba(255, 255, 255, 0.55); font-size: 11px; font-weight: 700; }
+.evnote { color: rgba(255, 255, 255, 0.62); font-size: 11px; }
+.evdot { background: #ffffff; border-radius: 999px; min-width: 6px; min-height: 6px; }
+.evx { background: transparent; border: none; box-shadow: none; color: rgba(255,255,255,0.4); min-width: 22px; min-height: 22px; padding: 0; border-radius: 999px; }
+.evx:hover { color: #ffffff; background: rgba(255, 255, 255, 0.10); }
+popover.evpop entry, popover.evpop textview text { background: rgba(255, 255, 255, 0.06); color: #ffffff; }
+popover.evpop entry { border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; min-height: 32px; padding: 0 10px; box-shadow: none; }
+popover.evpop entry:focus-within { border-color: rgba(255, 255, 255, 0.35); }
+.notebox { border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; background: rgba(255,255,255,0.06); padding: 6px 8px; }
+.notebox textview, .notebox textview text { background: transparent; color: #ffffff; font-size: 12px; }
+.evbtn { background: rgba(255, 255, 255, 0.08); color: #ffffff; border: none; box-shadow: none; border-radius: 999px;
+         padding: 4px 14px; font-size: 11px; font-weight: 700; transition: background 140ms ease; }
+.evbtn:hover { background: rgba(255, 255, 255, 0.16); }
+.evbtn.primary { background: #ffffff; color: #0c0c0e; }
+.evbtn.primary:hover { background: #e6e6ea; }
+.body { margin-top: 2px; }
 """
 
 def sh(*args):
@@ -138,24 +173,116 @@ class Dash(Gtk.ApplicationWindow):
         for card in (self.clock_card(), self.calendar_card(), self.music_card(), self.wall_card()):
             panel.append(card)
         keys = Gtk.EventControllerKey()
-        keys.connect("key-pressed", lambda *_: (self.set_visible(False), True)[1])
+        keys.connect("key-pressed", self.on_key)
         self.add_controller(keys)
         GLib.timeout_add(33, self.tick_clock)
         GLib.timeout_add(1000, self.tick_slow)
+
+    def on_key(self, ctrl, kv, kc, st):
+        if self.pop.get_visible():
+            if kv == Gdk.KEY_Escape: self.pop.popdown(); return True
+            return False
+        self.hide_dash(); return True
+
+    def hide_dash(self):
+        try: self.pop.popdown()
+        except Exception: pass
+        self.set_visible(False)
+        today = GLib.DateTime.new_now_local()
+        (self.cal.set_date if hasattr(self.cal, "set_date") else self.cal.select_day)(today)
+        GLib.idle_add(self.mark_events)
+
+    # ---------- events ----------
+    def mark_events(self):
+        self.cal.clear_marks()
+        d = self.cal.get_date(); ym = d.format("%Y-%m-")
+        for k in load_events():
+            if k.startswith(ym): self.cal.mark_day(int(k[-2:]))
+        return False
+
+    def on_cal_click(self, g, n, x, y):
+        w = self.cal.pick(x, y, Gtk.PickFlags.DEFAULT)
+        if not (isinstance(w, Gtk.Label) and w.has_css_class("day-number")): return
+        GLib.idle_add(self.open_day, x, y, n >= 2)
+
+    def open_day(self, x, y, edit):
+        d = self.cal.get_date(); key = d.format("%Y-%m-%d")
+        evs = load_events().get(key, [])
+        col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); col.set_size_request(270, -1)
+        head = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        h = Gtk.Label(label=d.format("%A, %d %B"), xalign=0); h.add_css_class("evhead"); head.append(h)
+        sub = Gtk.Label(label=(f"{len(evs)} event" + ("s" if len(evs) != 1 else "")) if evs else "No events", xalign=0)
+        sub.add_css_class("evsub"); head.append(sub); col.append(head)
+        for i, ev in enumerate(evs):
+            row = Gtk.Box(spacing=10); row.add_css_class("evrow")
+            dot = Gtk.Box(valign=Gtk.Align.START); dot.add_css_class("evdot"); dot.set_margin_top(5); row.append(dot)
+            txt = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, hexpand=True)
+            t = Gtk.Label(label=ev.get("title", ""), xalign=0, wrap=True); t.add_css_class("evtitle"); txt.append(t)
+            if ev.get("time"):
+                tm = Gtk.Label(label=ev["time"], xalign=0); tm.add_css_class("evtime"); txt.append(tm)
+            if ev.get("note"):
+                nt = Gtk.Label(label=ev["note"], xalign=0, wrap=True, max_width_chars=34); nt.add_css_class("evnote"); txt.append(nt)
+            row.append(txt)
+            x_btn = Gtk.Button(label="\u2715", valign=Gtk.Align.START); x_btn.add_css_class("evx")
+            x_btn.set_tooltip_text("Delete"); x_btn.connect("clicked", self.del_event, key, i, x, y)
+            row.append(x_btn); col.append(row)
+        if edit:
+            title = Gtk.Entry(placeholder_text="Event title"); col.append(title)
+            tm = Gtk.Entry(placeholder_text="Time (optional, e.g. 10:30 AM)"); col.append(tm)
+            nb = Gtk.Box(); nb.add_css_class("notebox")
+            note = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR, accepts_tab=False); note.set_size_request(-1, 64)
+            nb.append(note); note.set_hexpand(True); col.append(nb)
+            ph = Gtk.Label(label="Notes", xalign=0); ph.add_css_class("evsub"); col.insert_child_after(ph, tm)
+            btns = Gtk.Box(spacing=8, halign=Gtk.Align.END)
+            c = Gtk.Button(label="Cancel"); c.add_css_class("evbtn"); c.connect("clicked", lambda *_: self.pop.popdown())
+            sv = Gtk.Button(label="Save"); sv.add_css_class("evbtn"); sv.add_css_class("primary")
+            def save(*_):
+                ttl = title.get_text().strip()
+                if not ttl: title.grab_focus(); return
+                b = note.get_buffer(); body = b.get_text(b.get_start_iter(), b.get_end_iter(), False).strip()
+                ev = load_events(); ev.setdefault(key, []).append(
+                    {"id": GLib.uuid_string_random()[:8], "title": ttl, "time": tm.get_text().strip(), "note": body})
+                save_events(ev); self.mark_events(); self.open_day(x, y, False)
+                subprocess.Popen(["systemctl", "--user", "start", "s10-remind.service"],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            sv.connect("clicked", save); title.connect("activate", save)
+            btns.append(c); btns.append(sv); col.append(btns)
+            GLib.idle_add(lambda: (title.grab_focus(), False)[1])
+        else:
+            add = Gtk.Button(label="+ Add event", halign=Gtk.Align.START); add.add_css_class("evbtn")
+            add.connect("clicked", lambda *_: self.open_day(x, y, True)); col.append(add)
+        self.pop.set_child(col)
+        r = Gdk.Rectangle(); r.x, r.y, r.width, r.height = int(x), int(y), 1, 1
+        self.pop.set_pointing_to(r); self.pop.popup()
+        return False
+
+    def del_event(self, btn, key, i, x, y):
+        ev = load_events()
+        if key in ev and i < len(ev[key]):
+            ev[key].pop(i); save_events(ev)
+        self.mark_events(); self.open_day(x, y, False)
+
+    def card(self, title, width=-1):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); box.add_css_class("card")
+        box.set_size_request(width, -1)
+        box.append(self.caption(title))
+        body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, vexpand=True, valign=Gtk.Align.CENTER)
+        body.add_css_class("body"); box.append(body)
+        return box, body
 
     def caption(self, text):
         l = Gtk.Label(label=text, xalign=0); l.add_css_class("cap"); return l
 
     # clock
     def clock_card(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); box.add_css_class("card")
-        self.face = Gtk.DrawingArea(); self.face.set_content_width(150); self.face.set_content_height(150)
-        self.face.set_draw_func(self.draw_face); box.append(self.face)
-        row = Gtk.Box(spacing=2, halign=Gtk.Align.CENTER)
+        box, body = self.card("clock")
+        self.face = Gtk.DrawingArea(); self.face.set_content_width(156); self.face.set_content_height(156)
+        self.face.set_draw_func(self.draw_face); body.append(self.face)
+        row = Gtk.Box(spacing=2, halign=Gtk.Align.CENTER); row.set_margin_top(8)
         self.l_time = Gtk.Label(); self.l_time.add_css_class("time")
         self.l_secs = Gtk.Label(); self.l_secs.add_css_class("secs"); self.l_secs.set_valign(Gtk.Align.BASELINE)
-        row.append(self.l_time); row.append(self.l_secs); box.append(row)
-        self.l_date = Gtk.Label(); self.l_date.add_css_class("date"); box.append(self.l_date)
+        row.append(self.l_time); row.append(self.l_secs); body.append(row)
+        self.l_date = Gtk.Label(); self.l_date.add_css_class("date"); body.append(self.l_date)
         return box
 
     def draw_face(self, area, cr, w, h):
@@ -187,13 +314,23 @@ class Dash(Gtk.ApplicationWindow):
 
     # calendar
     def calendar_card(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); box.add_css_class("card")
-        box.append(self.caption("calendar")); box.append(Gtk.Calendar()); return box
+        box, body = self.card("calendar")
+        self.cal = Gtk.Calendar(); body.append(self.cal)
+        self.hint = Gtk.Label(label="click a date \u00b7 double-click to add an event"); self.hint.add_css_class("evsub")
+        self.hint.set_margin_top(6); body.append(self.hint)
+        for sig in ("next-month", "prev-month", "next-year", "prev-year"):
+            self.cal.connect(sig, lambda *_: GLib.idle_add(self.mark_events))
+        g = Gtk.GestureClick(); g.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        g.connect("released", self.on_cal_click); self.cal.add_controller(g)
+        self.pop = Gtk.Popover(); self.pop.add_css_class("evpop"); self.pop.set_parent(self.cal)
+        self.pop.set_autohide(True); self.pop.set_has_arrow(True)
+        self.mark_events()
+        return box
 
     # music
     def music_card(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); box.add_css_class("card")
-        box.set_size_request(230, -1); box.append(self.caption("now playing"))
+        box, body = self.card("now playing", 236)
+        body.set_spacing(18)
         top = Gtk.Box(spacing=12)
         frame = Gtk.Box(); frame.add_css_class("artbox"); frame.set_overflow(Gtk.Overflow.HIDDEN)
         frame.set_size_request(64, 64); frame.set_valign(Gtk.Align.CENTER)
@@ -203,7 +340,7 @@ class Dash(Gtk.ApplicationWindow):
         info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3, valign=Gtk.Align.CENTER)
         self.l_track = Gtk.Label(xalign=0, max_width_chars=18, ellipsize=Pango.EllipsizeMode.END); self.l_track.add_css_class("track")
         self.l_artist = Gtk.Label(xalign=0, max_width_chars=20, ellipsize=Pango.EllipsizeMode.END); self.l_artist.add_css_class("artist")
-        info.append(self.l_track); info.append(self.l_artist); top.append(info); box.append(top)
+        info.append(self.l_track); info.append(self.l_artist); top.append(info); body.append(top)
         ctr = Gtk.Box(spacing=10, halign=Gtk.Align.CENTER)
         for icon, cmd, extra in (("media-skip-backward-symbolic", "previous", None),
                                  ("media-playback-start-symbolic", "play-pause", "play"),
@@ -212,7 +349,7 @@ class Dash(Gtk.ApplicationWindow):
             if extra: b.add_css_class(extra); self.b_play = b
             b.connect("clicked", lambda _b, c=cmd: (sh("playerctl", c), GLib.timeout_add(250, self.tick_slow)))
             ctr.append(b)
-        box.append(ctr); return box
+        body.append(ctr); return box
 
     def tick_slow(self):
         if not self.get_visible(): return True
@@ -270,7 +407,7 @@ class Dash(Gtk.ApplicationWindow):
 
     def wrap(self, flow):
         sc = Gtk.ScrolledWindow(); sc.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        sc.set_size_request(420, 214); sc.set_child(flow); return sc
+        sc.set_size_request(420, 236); sc.set_child(flow); return sc
 
     def load_all(self):
         cur_v = os.path.realpath(VLINK) if os.path.islink(VLINK) else ""
@@ -328,10 +465,10 @@ class App(Gtk.Application):
         if self.win is None:
             self.hold()
             self.win = Dash(self)
-            self.win.connect("close-request", lambda w: (w.set_visible(False), True)[1])
+            self.win.connect("close-request", lambda w: (w.hide_dash(), True)[1])
             if "--hidden" in sys.argv: return
         elif self.win.get_visible():
-            self.win.set_visible(False); return
+            self.win.hide_dash(); return
         self.win.present(); self.win.tick_slow()
 
 if __name__ == "__main__":
