@@ -13,6 +13,9 @@ WALL_DIRS = sorted({d for p in ("*", "*/*", "*/*/*") for d in glob.glob(f"{HOME}
                     if os.path.isdir(d) and os.path.basename(d).lower().startswith("wallpaper")})
 CURRENT = f"{HOME}/Pictures/wall.jpg"
 THUMBS = f"{HOME}/.cache/s10-dash/thumbs"
+VDIR = f"{HOME}/Videos/wallpapers"
+VLINK = f"{HOME}/.config/s10/video-wall"
+VWALL = f"{HOME}/.local/bin/s10-vwall"
 os.makedirs(THUMBS, exist_ok=True)
 
 CSS = """
@@ -65,6 +68,8 @@ calendar > grid > label.day-number:selected { background: rgba(255,255,255,0.18)
 .thumb picture { border-radius: 10px; }
 .empty { color: rgba(255, 255, 255, 0.45); font-size: 11px; }
 scrollbar { opacity: 0; }
+.vbadge { background: rgba(0,0,0,0.55); color: #ffffff; border-radius: 999px; padding: 2px 7px; font-size: 9px; font-weight: 800; margin: 6px; }
+.thumb:hover .vbadge { background: #ffffff; color: #0c0c0e; }
 """
 
 def sh(*args):
@@ -82,6 +87,9 @@ def thumb_for(path):
     return out
 
 def set_wallpaper(path, pos):
+    try: os.remove(VLINK)
+    except Exception: pass
+    subprocess.run(["pkill", "-x", "mpvpaper"])
     try:
         shutil.copyfile(path, CURRENT)
     except Exception:
@@ -115,6 +123,7 @@ class Dash(Gtk.ApplicationWindow):
         panel.append(self.calendar_card())
         panel.append(self.music_card())
         panel.append(self.wall_card())
+        panel.append(self.video_card())
 
         keys = Gtk.EventControllerKey()
         keys.connect("key-pressed", lambda c, kv, kc, st: (self.set_visible(False), True)[1])
@@ -313,10 +322,68 @@ class Dash(Gtk.ApplicationWindow):
         self.thumbs.append(b)
 
     def pick(self, btn, path):
-        for t in self.thumbs:
+        for t in self.thumbs + getattr(self, "vthumbs", []):
             t.remove_css_class("active")
         btn.add_css_class("active")
         set_wallpaper(path, "0.5,0.5")
+
+    # live (video) wallpapers
+    def video_card(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        box.add_css_class("card")
+        box.append(self.caption("live wallpaper"))
+        sc = Gtk.ScrolledWindow()
+        sc.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sc.set_size_request(290, 196)
+        self.vflow = Gtk.FlowBox(max_children_per_line=2, min_children_per_line=2,
+                                 row_spacing=10, column_spacing=10, homogeneous=True,
+                                 selection_mode=Gtk.SelectionMode.NONE)
+        for m in ("top", "bottom", "start", "end"):
+            getattr(self.vflow, f"set_margin_{m}")(6)
+        sc.set_child(self.vflow)
+        box.append(sc)
+        self.vthumbs = []
+        threading.Thread(target=self.load_videos, daemon=True).start()
+        return box
+
+    def load_videos(self):
+        vids = sorted(glob.glob(f"{VDIR}/*.mp4"))
+        if not vids:
+            GLib.idle_add(lambda: self.vflow.append(Gtk.Label(label="Add .mp4 files to ~/Videos/wallpapers", wrap=True, css_classes=["empty"])))
+            return
+        try: cur = os.path.realpath(VLINK) if os.path.islink(VLINK) else ""
+        except Exception: cur = ""
+        for v in vids:
+            key = hashlib.md5(f"{v}{os.path.getmtime(v)}".encode()).hexdigest()
+            t = f"{THUMBS}/v-{key}.png"
+            if not os.path.exists(t):
+                subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-ss", "2", "-i", v,
+                                "-frames:v", "1", "-vf", "scale=320:-2", t])
+            if os.path.exists(t):
+                GLib.idle_add(self.add_vthumb, v, t, os.path.realpath(v) == cur)
+
+    def add_vthumb(self, path, thumb, active):
+        b = Gtk.Button(); b.add_css_class("thumb")
+        ov = Gtk.Overlay()
+        pic = Gtk.Picture.new_for_filename(thumb)
+        pic.set_content_fit(Gtk.ContentFit.COVER); pic.set_size_request(128, 80)
+        ov.set_child(pic)
+        badge = Gtk.Label(label="\u25b6 LIVE", halign=Gtk.Align.START, valign=Gtk.Align.END)
+        badge.add_css_class("vbadge")
+        ov.add_overlay(badge)
+        b.set_child(ov)
+        b.set_tooltip_text(os.path.basename(path)[:-4].replace("-", " "))
+        if active: b.add_css_class("active")
+        b.connect("clicked", self.pick_video, path)
+        self.vflow.append(b)
+        self.vthumbs.append(b)
+
+    def pick_video(self, btn, path):
+        for t in self.thumbs + self.vthumbs:
+            t.remove_css_class("active")
+        btn.add_css_class("active")
+        subprocess.Popen([VWALL, path], start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 class App(Gtk.Application):
     def __init__(self):
