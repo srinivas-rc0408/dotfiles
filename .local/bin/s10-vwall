@@ -1,0 +1,17 @@
+#!/bin/sh
+# s10-vwall <video>  set video wallpaper (saved)   |   s10-vwall off  back to image   |   s10-vwall  start saved
+V="$HOME/.config/s10/video-wall"
+case "$1" in
+  off) rm -f "$V" ;;
+  "")  ;;
+  *)   [ -f "$1" ] || { echo "no such file: $1"; exit 1; }; ln -sf "$(realpath "$1")" "$V" ;;
+esac
+pkill -x mpvpaper; pkill -x swaybg
+if [ -e "$V" ]; then
+  pkill -x swww-daemon
+  setsid -f mpvpaper -p -o "no-audio loop-file=inf hwdec=vaapi vo=gpu-next panscan=1.0 keepaspect=yes \
+    profile=fast scale=bilinear dscale=bilinear deband=no osc=no" "*" "$V" >/dev/null 2>&1
+else
+  swww query >/dev/null 2>&1 || { setsid -f swww-daemon >/dev/null 2>&1; sleep 0.5; }
+  swww img "$HOME/Pictures/wall.jpg" --transition-type fade --transition-duration 0.6 >/dev/null 2>&1
+fi
