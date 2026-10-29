@@ -9,7 +9,7 @@ configuration {
     sort: true;
     sorting-method: "fzf";
     hover-select: true;
-    me-select-entry: "";
+    me-select-entry: "MouseSecondary";
     me-accept-entry: "MousePrimary";
 }
 
