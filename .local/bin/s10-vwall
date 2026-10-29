@@ -25,4 +25,5 @@ else
   swww img "$IMG" --transition-type fade --transition-duration 0.8 --transition-fps 120 >/dev/null 2>&1
   sleep 0.2; pkill -x mpvpaper
 fi
+set -- $(pgrep -x mpvpaper | sort -n); [ $# -gt 1 ] && { shift $(($# - 1)) 2>/dev/null; for p in $(pgrep -x mpvpaper); do [ "$p" = "$1" ] || kill $p 2>/dev/null; done; }
 exit 0
