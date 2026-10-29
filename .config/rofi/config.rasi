@@ -215,3 +215,5 @@ box-bottom { background-color: rgba(255, 255, 255, 0.03); border: 1px; border-co
 box-hero { margin: 40px 0 0 0; }
 box-hero { margin: 0; padding: 110px 0; }
 box-hero { padding: 135px 0; }
+textbox-motto { enabled: false; }
+box-bottom { padding: 16px 0 0 0; spacing: 0; }

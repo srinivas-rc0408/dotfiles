@@ -592,3 +592,8 @@ window-rule {
 spawn-at-startup "~/.local/bin/s10-dash" "--hidden"
 
 spawn-at-startup "~/.local/bin/s10-dash-input"
+
+animations {
+    layer-open { duration-ms 180; curve "ease-out-expo"; }
+    layer-close { duration-ms 120; curve "ease-out-quad"; }
+}
