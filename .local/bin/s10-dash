@@ -101,6 +101,18 @@ popover.evpop entry:focus-within { border-color: rgba(255, 255, 255, 0.35); }
 .evbtn.primary { background: #ffffff; color: #0c0c0e; }
 .evbtn.primary:hover { background: #e6e6ea; }
 .body { margin-top: 2px; }
+/* v5 */
+* { outline: none; }
+*:focus-visible { outline: none; }
+.cap { min-height: 24px; }
+.seg { padding: 2px; }
+.seg button { min-height: 18px; padding: 1px 12px; font-size: 10.5px; }
+calendar > grid > label.day-number:focus, calendar > grid > label.day-number:focus-visible { outline: none; }
+calendar > grid > label.day-number:selected:not(.today) { background: rgba(255, 255, 255, 0.14); color: #ffffff; }
+.artbox image { color: rgba(255, 255, 255, 0.30); }
+.idle .mbtn { opacity: 0.45; }
+.idle .mbtn.play { opacity: 0.7; }
+.mbtn { transition: background 140ms ease, transform 140ms ease, opacity 220ms ease; }
 """
 
 def sh(*args):
@@ -271,7 +283,7 @@ class Dash(Gtk.ApplicationWindow):
         return box, body
 
     def caption(self, text):
-        l = Gtk.Label(label=text, xalign=0); l.add_css_class("cap"); return l
+        l = Gtk.Label(label=text, xalign=0, valign=Gtk.Align.CENTER); l.add_css_class("cap"); return l
 
     # clock
     def clock_card(self):
@@ -336,7 +348,10 @@ class Dash(Gtk.ApplicationWindow):
         frame.set_size_request(64, 64); frame.set_valign(Gtk.Align.CENTER)
         self.art = Gtk.Picture(); self.art.set_size_request(64, 64); self.art.set_can_shrink(True)
         self.art.set_content_fit(Gtk.ContentFit.COVER); self._art_src = None
-        frame.append(self.art); top.append(frame)
+        self.art_stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE, transition_duration=250)
+        ph = Gtk.Image.new_from_icon_name("audio-x-generic-symbolic"); ph.set_pixel_size(26)
+        self.art_stack.add_named(ph, "ph"); self.art_stack.add_named(self.art, "art")
+        frame.append(self.art_stack); top.append(frame); self.music_box = box
         info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3, valign=Gtk.Align.CENTER)
         self.l_track = Gtk.Label(xalign=0, max_width_chars=18, ellipsize=Pango.EllipsizeMode.END); self.l_track.add_css_class("track")
         self.l_artist = Gtk.Label(xalign=0, max_width_chars=20, ellipsize=Pango.EllipsizeMode.END); self.l_artist.add_css_class("artist")
@@ -371,7 +386,10 @@ class Dash(Gtk.ApplicationWindow):
             else:
                 self._art_src = None; self.art.set_paintable(None)
             self.b_play.set_icon_name("media-playback-pause-symbolic" if st == "Playing" else "media-playback-start-symbolic")
+            self.music_box.remove_css_class("idle")
+            self.art_stack.set_visible_child_name("art" if self.art.get_paintable() else "ph")
         else:
+            self.music_box.add_css_class("idle"); self.art_stack.set_visible_child_name("ph")
             self.l_track.set_label("Nothing playing"); self.l_artist.set_label("Start a song or video")
             self.art.set_paintable(None); self.b_play.set_icon_name("media-playback-start-symbolic")
         return True
@@ -407,7 +425,7 @@ class Dash(Gtk.ApplicationWindow):
 
     def wrap(self, flow):
         sc = Gtk.ScrolledWindow(); sc.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        sc.set_size_request(420, 236); sc.set_child(flow); return sc
+        sc.set_size_request(420, 240); sc.set_child(flow); self.scrolls = getattr(self, "scrolls", []) + [sc]; return sc
 
     def load_all(self):
         cur_v = os.path.realpath(VLINK) if os.path.islink(VLINK) else ""
@@ -469,6 +487,7 @@ class App(Gtk.Application):
             if "--hidden" in sys.argv: return
         elif self.win.get_visible():
             self.win.hide_dash(); return
+        for sc in getattr(self.win, "scrolls", []): sc.get_vadjustment().set_value(0)
         self.win.present(); self.win.tick_slow()
 
 if __name__ == "__main__":
