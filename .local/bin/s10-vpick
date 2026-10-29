@@ -1,0 +1,5 @@
+#!/bin/sh
+D="$HOME/Videos/wallpapers"
+c=$( (echo "off  ·  static image"; ls "$D" | sed "s/\.mp4$//") | rofi -dmenu -i -p "video wallpaper" -theme-str "window { width: 420px; }")
+[ -z "$c" ] && exit 0
+case "$c" in off*) exec s10-vwall off ;; *) exec s10-vwall "$D/$c.mp4" ;; esac
