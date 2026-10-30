@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# set a static wallpaper, then retire any live video
+swww query >/dev/null 2>&1 || { setsid -f swww-daemon; sleep 0.3; }
+swww img "$@" || exit 1
+sleep 0.5
+rm -f ~/.config/s10/video-wall
+~/.local/bin/s10-vwall off >/dev/null 2>&1
+pkill -x mpvpaper 2>/dev/null; true
