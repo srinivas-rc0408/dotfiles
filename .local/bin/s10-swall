@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# set a static wallpaper, then retire any live video
-swww query >/dev/null 2>&1 || { setsid -f swww-daemon; sleep 0.3; }
-swww img "$@" || exit 1
-sleep 0.5
-rm -f ~/.config/s10/video-wall
-~/.local/bin/s10-vwall off >/dev/null 2>&1
-pkill -x mpvpaper 2>/dev/null; true
+# s10-swall: instant static wallpaper switch
+img=""; for a in "$@"; do [ -f "$a" ] && img="$a"; done
+[ -n "$img" ] || exit 1
+swww query >/dev/null 2>&1 || { setsid -f swww-daemon; for i in 1 2 3 4 5 6 7 8 9 10; do swww query >/dev/null 2>&1 && break; sleep 0.05; done; }
+swww img "$img" --transition-type fade --transition-duration 0.35 --transition-fps 60 --resize crop >/dev/null 2>&1 &
+( sleep 0.4; rm -f ~/.config/s10/video-wall; pkill -x mpvpaper ) >/dev/null 2>&1 &
+disown -a; exit 0
