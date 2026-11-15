@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# s10-wifi — glass Wi-Fi menu (rofi script mode).
+#   s10-wifi               open / close the menu (toggle)
+#   s10-wifi --connect SSID   password prompt + connect (used internally)
+THEME="$HOME/.config/rofi/wifi.rasi"
+notify() { notify-send -a "Wi-Fi" -h string:x-canonical-private-synchronous:s10wifi "$@"; }
+
+bars() { # signal % -> glyph
+  local s=$1
+  if   [ "$s" -ge 75 ]; then printf '󰤨'
+  elif [ "$s" -ge 50 ]; then printf '󰤥'
+  elif [ "$s" -ge 25 ]; then printf '󰤢'
+  else printf '󰤟'; fi
+}
+
+connect() {  # $1 = SSID
+  local ssid="$1"
+  if nmcli -t -f NAME connection show | grep -Fxq "$ssid"; then
+    notify "Connecting…" "$ssid"
+    nmcli -w 15 connection up id "$ssid" >/dev/null 2>&1 \
+      && notify "Connected" "$ssid" || notify -u critical "Couldn't connect" "$ssid"
+    return
+  fi
+  local sec; sec=$(nmcli -t -f SSID,SECURITY dev wifi list --rescan no | grep -F "$ssid:" | head -1 | cut -d: -f2)
+  local pass=""
+  if [ -n "$sec" ] && [ "$sec" != "--" ]; then
+    pass=$(rofi -dmenu -password -p "󰌾" -mesg "Password for <b>$ssid</b>" -theme "$THEME" \
+                -theme-str 'listview { enabled: false; } inputbar { children: [prompt, entry]; }' </dev/null) || return
+    [ -n "$pass" ] || return
+  fi
+  notify "Connecting…" "$ssid"
+  if nmcli -w 20 device wifi connect "$ssid" ${pass:+password "$pass"} >/dev/null 2>&1; then
+    notify "Connected" "$ssid"
+  else
+    nmcli connection delete id "$ssid" >/dev/null 2>&1   # don't keep a broken profile
+    notify -u critical "Couldn't connect" "Wrong password or out of range: $ssid"
+  fi
+}
+
+# ---------------------------------------------------------------- script mode --
+if [ -n "$ROFI_RETV" ]; then
+  printf '\0prompt\x1f󰖩\n'
+  printf '\0markup-rows\x1ftrue\n'
+  printf '\0no-custom\x1ftrue\n'
+  case "$ROFI_INFO" in
+    __scan)
+      printf '\0message\x1fScanning…\n'
+      nmcli device wifi rescan >/dev/null 2>&1; sleep 2.5 ;;
+    __toggle)
+      if [ "$(nmcli radio wifi)" = enabled ]; then nmcli radio wifi off; else nmcli radio wifi on; sleep 2; fi ;;
+    __disconnect)
+      dev=$(nmcli -t -f DEVICE,TYPE device | awk -F: '$2=="wifi"{print $1; exit}')
+      nmcli device disconnect "$dev" >/dev/null 2>&1 ;;
+    __info) ;;
+    "") ;;
+    *) setsid -f "$0" --connect "$ROFI_INFO" >/dev/null 2>&1; exit 0 ;;   # closes menu
+  esac
+
+  radio=$(nmcli radio wifi)
+  if [ "$radio" != enabled ]; then
+    printf '\0message\x1fWi-Fi is off\n'
+    printf '󰖩   <b>Turn Wi-Fi on</b>\0info\x1f__toggle\n'
+    exit 0
+  fi
+
+  printf '󰑐   Scan for networks\0info\x1f__scan\n'
+  cur=$(nmcli -t -f ACTIVE,SSID dev wifi list --rescan no | awk -F: '$1=="yes"{print $2; exit}')
+  [ -n "$cur" ] && printf '󰖪   Disconnect\0info\x1f__disconnect\n'
+  printf '󰖪   Turn Wi-Fi off\0info\x1f__toggle\n'
+
+  # networks: connected first, then strongest; dedupe SSIDs; hide blanks
+  nmcli -t -f ACTIVE,SIGNAL,SECURITY,SSID dev wifi list --rescan no 2>/dev/null |
+    awk -F: '$4!="" && !seen[$4]++' |
+    sort -t: -k1,1r -k2,2nr |
+    while IFS=: read -r active sig sec ssid; do
+      ssid_esc=$(printf '%s' "$ssid" | sed 's/&/\&amp;/g; s/</\&lt;/g')
+      lock=""; [ -n "$sec" ] && [ "$sec" != "--" ] && lock="  <span alpha='45%'>󰌾</span>"
+      if [ "$active" = yes ]; then
+        printf '%s   <b>%s</b>%s   <span alpha="55%%">connected</span>\0info\x1f__info\x1fmeta\x1f%s\n' "$(bars "$sig")" "$ssid_esc" "$lock" "$ssid"
+      else
+        printf '%s   %s%s   <span alpha="40%%">%s%%</span>\0info\x1f%s\x1fmeta\x1f%s\n' "$(bars "$sig")" "$ssid_esc" "$lock" "$sig" "$ssid" "$ssid"
+      fi
+    done
+  [ -n "$cur" ] && printf '\0message\x1fConnected to <b>%s</b>\n' "$(printf '%s' "$cur" | sed 's/&/\&amp;/g; s/</\&lt;/g')"
+  exit 0
+fi
+
+# ------------------------------------------------------------------- entry ----
+case "$1" in
+  --connect) shift; connect "$1"; exit ;;
+esac
+pkill -f 'rofi.*wifi.rasi' && exit 0                      # toggle closed
+( nmcli device wifi rescan >/dev/null 2>&1 & )            # refresh list in background
+exec rofi -show wifi -modes "wifi:$0" -theme "$THEME" -kb-cancel "Escape,Super_L"

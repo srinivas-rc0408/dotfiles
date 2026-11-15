@@ -96,7 +96,8 @@
   "network": {
     "format-wifi": "󰤨 {essid}",
     "format-disconnected": "offline",
-    "on-click": "nm-connection-editor",
+    "on-click": "~/.local/bin/s10-wifi",
+    "on-click-right": "nm-connection-editor",
     "interval": 3,
     "tooltip-format-wifi": "{essid}  ·  signal {signalStrength}%\n{ifname}  {ipaddr}\n⇣ {bandwidthDownBytes}   ⇡ {bandwidthUpBytes}"
   },
