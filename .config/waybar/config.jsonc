@@ -21,6 +21,7 @@
     "backlight",
     "pulseaudio",
     "network",
+    "bluetooth",
     "battery",
     "custom/profile",
     "custom/notify",
@@ -91,7 +92,8 @@
     "smooth-scrolling-threshold": 1,
     "format": "󰕾 {volume}%",
     "format-muted": "󰝟",
-    "on-click": "pavucontrol"
+    "on-click": "~/.local/bin/s10-audio",
+    "on-click-right": "pavucontrol"
   },
   "network": {
     "format-wifi": "󰤨 {essid}",
@@ -118,6 +120,19 @@
     "interval": 10,
     "format-plugged": "⚡ {capacity}%",
     "tooltip-format": "{timeTo}\n{power:0.1f} W"
+  },
+  "bluetooth": {
+    "format": "󰂯",
+    "format-off": "󰂲",
+    "format-disabled": "󰂲",
+    "format-connected": "󰂱 {device_alias}",
+    "format-connected-battery": "󰂱 {device_alias} {device_battery_percentage}%",
+    "tooltip-format": "{controller_alias}  ·  {num_connections} connected",
+    "tooltip-format-connected": "{device_enumerate}",
+    "tooltip-format-enumerate-connected": "{device_alias}",
+    "max-length": 22,
+    "on-click": "~/.local/bin/s10-bt",
+    "on-click-right": "blueman-manager"
   },
   "tray": {
     "spacing": 8
@@ -150,7 +165,7 @@
   },
   "custom/power": {
     "format": "⏻",
-    "on-click": "pkill -x wlogout || wlogout -b 5 -T 470 -B 470 -L 578 -R 578 -c 16 -p layer-shell",
+    "on-click": "~/.local/bin/s10-power",
     "tooltip": false
   },
   "temperature": {

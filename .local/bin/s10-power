@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# s10-power — centered glass power menu.  Keys: L lock · E log out · S sleep · R restart · U power off
+THEME="$HOME/.config/rofi/power.rasi"
+run() { case "$1" in
+  lock)     pidof hyprlock >/dev/null || setsid -f hyprlock ;;
+  logout)   niri msg action quit --skip-confirmation ;;
+  sleep)    systemctl suspend ;;
+  reboot)   systemctl reboot ;;
+  poweroff) systemctl poweroff ;;
+esac; }
+
+if [ -n "$ROFI_RETV" ]; then
+  case "$ROFI_RETV" in
+    10) setsid -f "$0" --run lock;     exit 0 ;;
+    11) setsid -f "$0" --run logout;   exit 0 ;;
+    12) setsid -f "$0" --run sleep;    exit 0 ;;
+    13) setsid -f "$0" --run reboot;   exit 0 ;;
+    14) setsid -f "$0" --run poweroff; exit 0 ;;
+  esac
+  [ -n "$ROFI_INFO" ] && { setsid -f "$0" --run "$ROFI_INFO"; exit 0; }
+  up=$(uptime -p | sed 's/^up //; s/ hours\?/h/; s/ minutes\?/m/; s/,//g')
+  bat=$(cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -1)
+  printf '\0markup-rows\x1ftrue\n\0no-custom\x1ftrue\n'
+  printf '\0message\x1f<span alpha="60%%">up %s   ·   battery %s%%</span>\n' "$up" "$bat"
+  row() { printf '<span font="JetBrainsMono Nerd Font 24">%s</span>\n<span font="Inter SemiBold 10">%s</span>\n<span font="JetBrainsMono Nerd Font 8" alpha="40%%">%s</span>\0info\x1f%s\n' "$1" "$2" "$3" "$4"; }
+  row '󰌾' 'Lock'      'L' lock
+  row '󰍃' 'Log out'   'E' logout
+  row '󰒲' 'Sleep'     'S' sleep
+  row '󰜉' 'Restart'   'R' reboot
+  row '󰐥' 'Power off' 'U' poweroff
+  exit 0
+fi
+case "$1" in --run) sleep 0.15; run "$2"; exit ;; esac
+pkill -f 'rofi -show power' && exit 0
+pkill -f 'rofi -show (wifi|bt|audio)'; pkill -x wlogout
+exec rofi -show power -modes "power:$0" -theme "$THEME" \
+  -kb-custom-1 l -kb-custom-2 e -kb-custom-3 s -kb-custom-4 r -kb-custom-5 u \
+  -kb-row-left Left -kb-row-right Right -kb-move-char-back "" -kb-move-char-forward "" \
+  -hover-select -me-select-entry MouseSecondary -me-accept-entry MousePrimary -click-to-exit \
+  -kb-cancel "Escape,Super_L"

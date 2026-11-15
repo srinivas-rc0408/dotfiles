@@ -457,7 +457,7 @@ binds {
     Mod+Shift+WheelScrollUp   { focus-column-left; }
 
     // ── system ───────────────────────────────────────────
-    Mod+X repeat=false hotkey-overlay-title="Power menu (then U R S L E)" { spawn-sh "pkill -x wlogout || wlogout -b 5 -T 470 -B 470 -L 578 -R 578 -c 16 -p layer-shell"; }
+    Mod+X repeat=false hotkey-overlay-title="Power menu (then U R S L E)" { spawn "~/.local/bin/s10-power"; }
     Mod+Alt+L hotkey-overlay-title="Lock" { spawn "hyprlock"; }
     Mod+Shift+Slash hotkey-overlay-title="Show shortcuts" { show-hotkey-overlay; }
     Mod+Escape allow-inhibiting=false hotkey-overlay-title=null { toggle-keyboard-shortcuts-inhibit; }
