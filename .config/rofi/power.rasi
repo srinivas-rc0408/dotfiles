@@ -1,37 +1,38 @@
-/* S10 power menu — centered glass row, matches launcher / dashboard */
+/* S10 power menu — full-screen dim overlay, floating glass tiles, nothing else */
 * {
   font: "Inter Medium 10";
   background-color: transparent; text-color: #ffffff;
   margin: 0; padding: 0; spacing: 0; border: 0;
 }
 window {
-  location: center; anchor: center;
-  width: 760px; padding: 22px;
-  background-color: rgba(20, 24, 32, 0.55);
-  border: 1px; border-color: rgba(255, 255, 255, 0.12);
-  border-radius: 30px;
+  fullscreen: true;
+  background-color: rgba(6, 8, 12, 0.55);      /* the overlay */
 }
-mainbox { spacing: 16px; children: [ listview, message ]; }
-inputbar { enabled: false; }
-message { padding: 0 4px; }
-textbox { font: "Inter 9.5"; horizontal-align: 0.5; text-color: rgba(255,255,255,0.6); }
+mainbox  { orientation: vertical; children: [ button-top, row, message, button-bottom ]; }
+row      { orientation: horizontal; expand: false; children: [ button-left, listview, button-right ]; }
+
+/* clicking anywhere on the overlay closes the menu */
+button-top, button-bottom, button-left, button-right { expand: true; action: "kb-cancel"; cursor: default; content: ""; }
+button-left, button-right { expand: false; padding: 0 286px; }   /* (1920 - 776) / 2 per side */
+
 listview {
-  columns: 5; lines: 1; spacing: 12px; flow: horizontal;
-  fixed-columns: true; scrollbar: false; cycle: true;
+  expand: true; fixed-columns: true;
+  columns: 5; lines: 1; spacing: 18px; flow: horizontal;
+  scrollbar: false; cycle: true;
 }
 element {
   orientation: vertical;
-  padding: 24px 0 18px 0; border-radius: 22px; cursor: pointer;
-  border: 1px; border-color: rgba(255, 255, 255, 0.07);
-  background-color: rgba(255, 255, 255, 0.04);
+  padding: 26px 0 20px 0; border-radius: 26px; cursor: pointer;
+  border: 1px; border-color: rgba(255, 255, 255, 0.10);
+  background-color: rgba(255, 255, 255, 0.06);
 }
 element selected.normal {
-  background-color: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.30);
+  background-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.42);
 }
 element-icon { enabled: false; }
-element-text {
-  horizontal-align: 0.5; vertical-align: 0.5;
-  text-color: rgba(255, 255, 255, 0.72);
-}
+element-text { horizontal-align: 0.5; vertical-align: 0.5; text-color: rgba(255, 255, 255, 0.70); }
 element selected.normal element-text { text-color: #ffffff; }
+
+message { expand: false; padding: 22px 0 0 0; }
+textbox { font: "Inter 9.5"; horizontal-align: 0.5; text-color: rgba(255,255,255,0.55); }
