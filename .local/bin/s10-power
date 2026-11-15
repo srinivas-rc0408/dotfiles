@@ -9,7 +9,7 @@ bat=$(cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -1)
 tile() { printf '<span font="JetBrainsMono Nerd Font 26">%s</span>\n<span font="Inter SemiBold 10.5">%s</span>\n<span font="Inter Medium 8" alpha="38%%">%s</span>|' "$1" "$2" "$3"; }
 menu=$(tile '󰌾' 'Lock' 'L'; tile '󰍃' 'Log out' 'E'; tile '󰒲' 'Sleep' 'S'; tile '󰜉' 'Restart' 'R'; tile '󰐥' 'Power off' 'U')
 
-idx=$(printf '%s' "${menu%|}" | rofi -dmenu -sep '|' -format i -markup-rows -no-custom -i \
+idx=$(printf '%s' "${menu%|}" | rofi -dmenu -sep '|' -format i -markup-rows -no-custom -i -eh 4 \
   -theme "$THEME" -mesg "<span alpha='55%'>up $up   ·   battery ${bat}%</span>" \
   -kb-custom-1 l -kb-custom-2 e -kb-custom-3 s -kb-custom-4 r -kb-custom-5 u \
   -kb-row-left Left -kb-row-right Right -kb-move-char-back "" -kb-move-char-forward "" \

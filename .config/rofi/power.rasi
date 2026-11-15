@@ -17,7 +17,7 @@ message { padding: 0 4px; }
 textbox { font: "Inter 9.5"; horizontal-align: 0.5; text-color: rgba(255,255,255,0.6); }
 listview {
   columns: 5; lines: 1; spacing: 12px; flow: horizontal;
-  fixed-columns: true; fixed-height: true; scrollbar: false; cycle: true;
+  fixed-columns: true; scrollbar: false; cycle: true;
 }
 element {
   orientation: vertical;
