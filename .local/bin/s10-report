@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# s10-report — one-shot health report -> ~/Downloads/s10-report.txt
+out="$HOME/Downloads/s10-report.txt"
+{
+sec() { printf '\n===== %s =====\n' "$1"; }
+sec "boot"; uname -r; cat /proc/cmdline; systemd-analyze 2>&1 | tail -1
+sec "sleep mode"; cat /sys/power/mem_sleep; cat /sys/power/state
+sec "logind power/lid"; grep -rhE '^(Handle|Idle|Suspend)' /etc/systemd/logind.conf /etc/systemd/logind.conf.d/ 2>/dev/null
+sec "sleep hooks"; ls /etc/systemd/system-sleep/ /usr/lib/systemd/system-sleep/ 2>/dev/null
+sec "nvidia"; systemctl is-enabled nvidia-suspend nvidia-resume nvidia-hibernate 2>&1; grep -E 'Preserve|TemporaryFile' /proc/driver/nvidia/params 2>/dev/null; nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null
+sec "supergfx/asus"; supergfxctl --mode 2>/dev/null; asusctl profile get 2>/dev/null | head -2
+sec "suspend attempts this boot"; journalctl -b 0 --no-pager -o short-monotonic | grep -iE 'PM: suspend|PM: resume|suspend entry|suspend exit|Freezing|Restarting tasks|nvidia-(suspend|resume)|NVRM.*(suspend|resume|fail|error)|Failed to suspend|Sleep|ACPI: PM|s2idle|deep' | tail -60
+sec "suspend attempts previous boot"; journalctl -b -1 --no-pager -o short-monotonic | grep -iE 'PM: suspend|PM: resume|suspend entry|suspend exit|Freezing|Restarting tasks|nvidia-(suspend|resume)|NVRM.*(suspend|resume|fail|error)|Failed to suspend|Sleep' | tail -60
+sec "previous boot last 30 lines"; journalctl -b -1 -n 30 --no-pager
+sec "errors this boot"; journalctl -b 0 -p err --no-pager | grep -v 'UFW BLOCK' | tail -50
+sec "errors previous boot"; journalctl -b -1 -p err --no-pager | grep -v 'UFW BLOCK' | tail -40
+sec "failed units"; systemctl --failed --no-legend; systemctl --user --failed --no-legend
+sec "user services"; systemctl --user is-active s10-eyes s10-remind.timer 2>&1
+sec "processes"; for p in waybar swww-daemon mpvpaper swayidle hyprlock s10-dash ghostty swaync; do printf '%-12s %s\n' $p "$(pgrep -fc $p)"; done
+sec "disk"; df -h / /home /boot | tail -3
+sec "boot entries"; sudo -n cat /boot/loader/entries/*.conf 2>/dev/null || echo "(run with sudo to include)"
+sec "leftovers"; ls -la ~/.config/*/*.bak ~/.config/*/*.new ~/.local/bin/*.bak ~/.local/bin/s10-swall ~/.local/bin/s10-power-rebuild ~/Downloads/s10-* 2>/dev/null
+} > "$out" 2>&1
+echo "report written: $out ($(wc -l < "$out") lines)"
