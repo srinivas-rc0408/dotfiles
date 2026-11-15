@@ -276,7 +276,7 @@ spawn-at-startup "waybar"
 spawn-at-startup "swayosd-server"
 spawn-at-startup "swaync"
 spawn-at-startup "~/.local/bin/s10-vwall"
-spawn-at-startup "nm-applet" "--indicator"
+// nm-applet replaced by s10-wifi
 spawn-at-startup "/usr/lib/polkit-kde-authentication-agent-1"
 spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
 spawn-at-startup "swayidle" "-w" "timeout" "600" "pidof hyprlock || hyprlock" "before-sleep" "pidof hyprlock || hyprlock"
