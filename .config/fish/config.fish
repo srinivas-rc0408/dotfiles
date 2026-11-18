@@ -138,3 +138,9 @@ set -x OLLAMA_MODELS /home/superior/.ollama/models
 # bun
 set --export BUN_INSTALL "$HOME/.bun"
 set --export PATH $BUN_INSTALL/bin $PATH
+
+# JobHunter: activate its venv only when working on it
+alias jh="cd ~/jobhunter; and source .venv/bin/activate.fish"
+
+# JobHunter: activate its venv only when working on it
+alias jh="cd ~/jobhunter; and source .venv/bin/activate.fish"
