@@ -26,14 +26,24 @@ bootctl update --graceful >/dev/null 2>&1
 SD="$ESP/EFI/systemd/systemd-bootx64.efi"; FB="$ESP/EFI/BOOT/BOOTX64.EFI"
 if [ -s "$SD" ] && ! cmp -s "$SD" "$FB"; then mkdir -p "$(dirname "$FB")"; cp "$SD" "$FB"; log "fallback loader refreshed"; fi
 
-# 4. Linux Boot Manager on THIS ESP must be first in firmware boot order
-PU=$(blkid -s PARTUUID -o value "$(findmnt -no SOURCE "$ESP")")
-NUM=$(efibootmgr | grep -i "Linux Boot Manager" | grep -i "$PU" | head -1 | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\).*/\1/p')
+# 4. firmware boot entries: drop stale ones pointing at partitions that no longer exist,
+#    then order: Linux Boot Manager (this ESP) -> its fallback -> everything else
+PU=$(blkid -s PARTUUID -o value "$(findmnt -no SOURCE "$ESP" | head -1)" | head -1)
+LIVE=$(lsblk -rno PARTUUID | tr 'A-Z' 'a-z')
+efibootmgr | grep -iE '^Boot[0-9a-f]{4}\*? .*HD\([0-9]+,GPT,' | while read -r line; do
+  n=$(echo "$line" | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\).*/\1/p')
+  p=$(echo "$line" | sed -n 's/.*HD([0-9]*,GPT,\([0-9a-fA-F-]*\),.*/\1/p' | tr 'A-Z' 'a-z')
+  if [ -n "$p" ] && ! echo "$LIVE" | grep -qx "$p"; then efibootmgr -q -b "$n" -B && log "removed stale boot entry $n ($p)"; fi
+done
+NUM=$(efibootmgr | grep -i "Linux Boot Manager" | grep -vi Fallback | grep -i "$PU" | head -1 | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\).*/\1/p')
+FBN=$(efibootmgr | grep -i "Fallback Linux Boot Manager" | grep -i "$PU" | head -1 | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\).*/\1/p')
 if [ -n "$NUM" ]; then
   ORDER=$(efibootmgr | sed -n 's/^BootOrder: //p')
+  WANT="$NUM${FBN:+,$FBN}"
   case "$ORDER" in
-    "$NUM"*) ;;
-    *) REST=$(echo "$ORDER" | tr ',' '\n' | grep -vix "$NUM" | paste -sd,); efibootmgr -q -o "$NUM${REST:+,$REST}" && log "boot order fixed: $NUM first" ;;
+    "$WANT"*) ;;
+    *) REST=$(echo "$ORDER" | tr ',' '\n' | grep -vix -e "$NUM" ${FBN:+-e "$FBN"} | paste -sd,)
+       efibootmgr -q -o "$WANT${REST:+,$REST}" && log "boot order fixed: $WANT first" ;;
   esac
 fi
 
