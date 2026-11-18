@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# s10-harden — one-time hardening. Safe to re-run. Run as your user: s10-harden
+set -u
+ok() { printf '  \e[32m✓\e[0m %s\n' "$*"; }; bad() { printf '  \e[31m✗\e[0m %s\n' "$*"; }
+echo "S10 hardening"
+sudo -v || exit 1
+
+# --- boot guard (system) -------------------------------------------------------
+sudo install -m755 "$HOME/.local/bin/esp-guard" /usr/local/sbin/esp-guard
+printf '%s\n' '[Unit]' 'Description=S10 EFI/boot-menu guard' 'RequiresMountsFor=/boot /root' 'After=local-fs.target' '' \
+  '[Service]' 'Type=oneshot' 'ExecStart=/usr/local/sbin/esp-guard' '' '[Install]' 'WantedBy=multi-user.target' \
+  | sudo tee /etc/systemd/system/esp-guard.service >/dev/null
+printf '%s\n' '[Unit]' 'Description=S10 guard after kernel/boot changes' '' '[Path]' 'PathChanged=/boot/loader/entries' 'PathChanged=/boot/vmlinuz-linux' '' \
+  '[Install]' 'WantedBy=multi-user.target' | sudo tee /etc/systemd/system/esp-guard.path >/dev/null
+sudo systemctl disable --now esp-backup.path >/dev/null 2>&1; sudo rm -f /etc/systemd/system/esp-backup.{path,service}
+sudo systemctl daemon-reload
+sudo systemctl enable --now esp-guard.service esp-guard.path >/dev/null 2>&1 && ok "boot guard active (every boot + after kernel updates)"
+sudo systemctl enable systemd-boot-update.service >/dev/null 2>&1 && ok "systemd-boot auto-update on"
+sudo /usr/local/sbin/esp-guard
+efibootmgr | sed -n 's/^BootOrder: /  boot order: /p'
+
+# --- fsck the EFI partition once ------------------------------------------------
+dev=$(findmnt -no SOURCE /boot)
+sudo umount /boot && sudo fsck.vfat -a "$dev" >/dev/null 2>&1; sudo mount /boot && ok "EFI partition checked ($dev)"
+
+# --- /boot permissions (fstab), with verify + rollback --------------------------
+if grep -qE '[[:space:]]/boot[[:space:]].*fmask=0022' /etc/fstab; then
+  sudo cp /etc/fstab /etc/fstab.s10bak
+  sudo sed -i -E '/[[:space:]]\/boot[[:space:]]/ s/fmask=0022,dmask=0022/fmask=0077,dmask=0077/' /etc/fstab
+  sudo systemctl daemon-reload
+  if sudo umount /boot && sudo mount /boot; then ok "/boot locked to root"; sudo rm -f /etc/fstab.s10bak
+  else bad "/boot remount failed — reverted"; sudo cp /etc/fstab.s10bak /etc/fstab; sudo systemctl daemon-reload; sudo mount /boot; fi
+else ok "/boot permissions already correct"; fi
+
+# --- Windows guard script onto the shared partition -----------------------------
+sudo install -m644 "$HOME/.local/bin/s10-windows-guard.ps1" /boot/s10-windows-guard.ps1 && ok "Windows guard placed on EFI partition"
+
+# --- self-restarting desktop pieces (user services) -----------------------------
+U="$HOME/.config/systemd/user"; mkdir -p "$U"
+mk() { printf '%s\n' '[Unit]' "Description=$2" 'PartOf=graphical-session.target' 'After=graphical-session.target' '' \
+  '[Service]' "ExecStart=$3" 'Restart=always' 'RestartSec=2' '' '[Install]' 'WantedBy=graphical-session.target' > "$U/$1.service"; }
+mk s10-dash "S10 dashboard" "/usr/bin/python3 $HOME/.local/bin/s10-dash --hidden"
+mk s10-dash-input "S10 dashboard click-outside" "/usr/bin/python3 $HOME/.local/bin/s10-dash-input"
+sed -i 's|^ExecStart=.*s10-eyes$|ExecStart=/usr/bin/python3 %h/.local/bin/s10-eyes|' "$U/s10-eyes.service"
+sed -i -E 's/^(StartLimit[A-Za-z]*=.*)$//' "$U/s10-eyes.service"
+grep -q '^StartLimitIntervalSec' "$U/s10-eyes.service" || sed -i 's/^\[Unit\]$/[Unit]\nStartLimitIntervalSec=0/' "$U/s10-eyes.service"
+for s in s10-dash s10-dash-input; do grep -q '^StartLimitIntervalSec' "$U/$s.service" || sed -i 's/^\[Unit\]$/[Unit]\nStartLimitIntervalSec=0/' "$U/$s.service"; done
+N="$HOME/.config/niri/config.kdl"; cp "$N" "$N.s10bak"
+sed -i -E 's|^spawn-at-startup "~/.local/bin/s10-dash" "--hidden"$|spawn-at-startup "systemctl" "--user" "restart" "s10-dash" "s10-dash-input"|; \|^spawn-at-startup "~/.local/bin/s10-dash-input"$|d' "$N"
+if niri validate >/dev/null 2>&1; then rm -f "$N.s10bak"; ok "niri now starts dashboard via services"; else mv "$N.s10bak" "$N"; bad "niri config rejected — reverted"; fi
+systemctl --user daemon-reload
+systemctl --user import-environment WAYLAND_DISPLAY XDG_RUNTIME_DIR DISPLAY NIRI_SOCKET 2>/dev/null
+pkill -f 's10-dash --hidden'; pkill -f s10-dash-input; sleep 0.5
+systemctl --user enable --now s10-dash s10-dash-input s10-eyes >/dev/null 2>&1
+systemctl --user reset-failed 2>/dev/null
+for s in s10-dash s10-dash-input s10-eyes; do [ "$(systemctl --user is-active $s)" = active ] && ok "$s running (auto-restarts)" || bad "$s not running"; done
+
+# --- python safety: S10 scripts always use system python ------------------------
+for f in s10-dash s10-eyes s10-clockd s10-dash-input niri-autosplit; do sed -i '1s|^#!.*python.*$|#!/usr/bin/python3|' "$HOME/.local/bin/$f"; done
+/usr/bin/python3 -c 'import gi, cairo, evdev' 2>/dev/null && ok "system python has gi/cairo/evdev" || bad "system python missing modules"
+
+echo; echo "Next: in Windows run S:\\s10-windows-guard.ps1 once (instructions in chat)."

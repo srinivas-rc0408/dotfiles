@@ -600,9 +600,8 @@ window-rule {
     }
 }
 
-spawn-at-startup "~/.local/bin/s10-dash" "--hidden"
+spawn-at-startup "systemctl" "--user" "restart" "s10-dash" "s10-dash-input"
 
-spawn-at-startup "~/.local/bin/s10-dash-input"
 
 spawn-at-startup "swww-daemon"
 

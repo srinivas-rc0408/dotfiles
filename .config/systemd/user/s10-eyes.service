@@ -1,10 +1,12 @@
 [Unit]
+StartLimitIntervalSec=0
+
 Description=S10 clock-pill eyes
 PartOf=graphical-session.target
 After=graphical-session.target
 
 [Service]
-ExecStart=%h/.local/bin/s10-eyes
+ExecStart=/usr/bin/python3 %h/.local/bin/s10-eyes
 Restart=always
 RestartSec=1
 

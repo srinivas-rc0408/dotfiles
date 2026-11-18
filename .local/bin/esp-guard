@@ -1,0 +1,43 @@
+#!/bin/sh
+# /usr/local/sbin/esp-guard — runs at every Linux boot. Repairs anything Windows (or a bad
+# shutdown) can break on the shared EFI partition, then refreshes the known-good backup.
+B=/root/esp-backup; ESP=/boot
+mkdir -p "$B"
+log() { echo "esp-guard: $*"; }
+
+# 1. boot entries + loader.conf: restore if missing/empty, back up if healthy
+for f in "$B"/*.conf; do
+  [ -e "$f" ] || continue
+  n=$(basename "$f")
+  [ "$n" = loader.conf ] && t="$ESP/loader/loader.conf" || t="$ESP/loader/entries/$n"
+  if [ ! -s "$t" ]; then mkdir -p "$(dirname "$t")"; cp "$f" "$t"; log "restored $t"; fi
+done
+for f in "$ESP"/loader/entries/*.conf "$ESP"/loader/loader.conf; do
+  [ -s "$f" ] && grep -q . "$f" && cp "$f" "$B/"
+done
+
+# 2. kernel/initramfs must exist; if not, rebuild them
+for k in vmlinuz-linux initramfs-linux.img vmlinuz-linux-lts initramfs-linux-lts.img; do
+  if [ ! -s "$ESP/$k" ]; then log "missing $k — rebuilding"; mkinitcpio -P >/dev/null 2>&1; break; fi
+done
+
+# 3. systemd-boot binary + firmware fallback path
+bootctl update --graceful >/dev/null 2>&1
+SD="$ESP/EFI/systemd/systemd-bootx64.efi"; FB="$ESP/EFI/BOOT/BOOTX64.EFI"
+if [ -s "$SD" ] && ! cmp -s "$SD" "$FB"; then mkdir -p "$(dirname "$FB")"; cp "$SD" "$FB"; log "fallback loader refreshed"; fi
+
+# 4. Linux Boot Manager on THIS ESP must be first in firmware boot order
+PU=$(blkid -s PARTUUID -o value "$(findmnt -no SOURCE "$ESP")")
+NUM=$(efibootmgr | grep -i "Linux Boot Manager" | grep -i "$PU" | head -1 | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\).*/\1/p')
+if [ -n "$NUM" ]; then
+  ORDER=$(efibootmgr | sed -n 's/^BootOrder: //p')
+  case "$ORDER" in
+    "$NUM"*) ;;
+    *) REST=$(echo "$ORDER" | tr ',' '\n' | grep -vix "$NUM" | paste -sd,); efibootmgr -q -o "$NUM${REST:+,$REST}" && log "boot order fixed: $NUM first" ;;
+  esac
+fi
+
+# 5. menu always visible for 3 s
+grep -q '^timeout' "$ESP/loader/loader.conf" 2>/dev/null || echo 'timeout 3' >> "$ESP/loader/loader.conf"
+bootctl set-timeout 3 >/dev/null 2>&1
+sync

@@ -1,0 +1,13 @@
+[Unit]
+StartLimitIntervalSec=0
+Description=S10 dashboard click-outside
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/superior/.local/bin/s10-dash-input
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target
