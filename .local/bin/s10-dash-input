@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # Passive mouse watcher: a click outside S10 Dash closes it. Never intercepts input.
 import json, os, select, subprocess, time
 import evdev

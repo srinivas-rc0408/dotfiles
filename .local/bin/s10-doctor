@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# s10-doctor — test every S10 component and capture why it fails -> ~/Downloads/s10-doctor.txt
+out="$HOME/Downloads/s10-doctor.txt"
+sec() { printf '\n===== %s =====\n' "$1"; }
+try() { printf '$ %s\n' "$*"; timeout 6 bash -c "$*" 2>&1 | tail -15; printf '[exit %s]\n' "${PIPESTATUS[0]}"; }
+{
+sec "system"; uname -r; cat /proc/cmdline; python3 --version; pacman -Q python gtk4 gtk4-layer-shell python-gobject python-evdev python-cairo 2>&1
+sec "recent upgrades (last 2 days)"; grep -E "\[ALPM\] (upgraded|installed|removed)" /var/log/pacman.log | tail -40
+sec "python imports"
+try "python3 -c 'import gi; gi.require_version(\"Gtk\",\"4.0\"); from gi.repository import Gtk; print(\"gtk ok\", Gtk.get_major_version(), Gtk.get_minor_version())'"
+try "python3 -c 'import gi; gi.require_version(\"Gtk4LayerShell\",\"1.0\"); from gi.repository import Gtk4LayerShell; print(\"layershell ok\")'"
+try "python3 -c 'import evdev, cairo; print(\"evdev+cairo ok\")'"
+ls -la /usr/lib/libgtk4-layer-shell.so* 2>&1
+sec "dashboard"; pgrep -af s10-dash
+try "~/.local/bin/s10-dash-toggle"
+try "pkill -f 's10-dash --hidden'; sleep 0.5; ~/.local/bin/s10-dash --hidden & sleep 4; pgrep -af s10-dash"
+sec "eyes"; systemctl --user status s10-eyes --no-pager 2>&1 | head -12
+journalctl --user -u s10-eyes -n 25 --no-pager 2>&1
+sec "clock daemon"; pgrep -af s10-clockd; cat /tmp/s10-clock-mode 2>&1
+sec "wallpaper"; pgrep -af 'swww-daemon|mpvpaper'; swww query 2>&1 | head -3
+sec "niri binds"; grep -nE 'Space|s10-dash|XF86' ~/.config/niri/config.kdl | head -20; niri validate 2>&1 | tail -2
+sec "boot"; ls -la /boot/loader/entries/ 2>&1; sudo -n cat /boot/loader/entries/*.conf 2>&1; sudo -n bootctl status 2>&1 | grep -E 'Boot Loader|Current Entry|Default Entry|Product|Secure' ; efibootmgr 2>&1 | head -12
+systemctl is-enabled esp-guard.service esp-backup.path 2>&1; sudo -n ls -la /root/esp-backup 2>&1
+sec "errors this boot"; journalctl -b 0 -p err --no-pager -o cat | grep -v 'UFW BLOCK' | sort | uniq -c | sort -rn | head -25
+sec "user journal errors"; journalctl --user -b 0 -p warning --no-pager -o cat | sort | uniq -c | sort -rn | head -25
+} > "$out" 2>&1
+echo "written: $out"

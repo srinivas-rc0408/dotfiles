@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # S10 Dash: clock | calendar | music | wallpapers (Images / Live). GTK4, resident, toggled over D-Bus.
 import datetime, glob, hashlib, json, math, os, shutil, socket, subprocess, sys, threading
 import gi
