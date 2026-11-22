@@ -1,11 +1,12 @@
 function fetch
-    # side-by-side needs ~110 columns; narrower windows put the bolt above the info
-    if test $COLUMNS -lt 110
+    # bolt beside the info whenever it fits (a half-screen terminal is ~90 columns);
+    # only very narrow windows put the bolt on top
+    if test $COLUMNS -lt 84
         fastfetch --logo ~/.config/fastfetch/s10.txt --logo-type file --logo-color-1 default \
                   --logo-position top --logo-padding-top 1 --logo-padding-left 12
     else
         fastfetch --logo ~/.config/fastfetch/s10.txt --logo-type file --logo-color-1 default \
-                        --logo-padding-top 3 --logo-padding-left 3 --logo-padding-right 6
+                  --logo-padding-top 2 --logo-padding-left 2 --logo-padding-right 4
     end
     set -g __fetch_fresh 1
 end

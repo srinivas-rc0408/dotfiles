@@ -1,11 +1,28 @@
 #!/usr/bin/python3
-# Evenly split tiled columns on a workspace when its column count changes.
-# Resizes by window id, so focus never jumps between windows.
+"""
+niri-autosplit — pair layout for every workspace.
+
+  1 window   -> full screen
+  2 windows  -> half | half
+  3 windows  -> half | half | FULL (opens to the right, view scrolls to it)
+  4 windows  -> half | half | half | half   (two "screens" of two)
+  ...and so on: windows always come in screen-wide pairs; an odd last one is full width.
+
+Only runs when a workspace's column count changes (open / close / stack / unstack),
+so any width you set by hand (Mod+Minus / Mod+Equal / Mod+R / mouse) stays until then.
+Stacking two windows in one column (Mod+[ / Mod+]) counts as one column, so you can do
+"one left half + two stacked on the right half".
+Resizes by window id: focus never jumps.
+"""
 import json, subprocess
 
 def query(what):
     out = subprocess.run(["niri", "msg", "--json", what], capture_output=True, text=True).stdout
     return json.loads(out) if out else []
+
+def set_width(wid, width):
+    subprocess.run(["niri", "msg", "action", "set-window-width", "--id", str(wid), width],
+                   capture_output=True)
 
 last = {}
 
@@ -19,21 +36,24 @@ def rebalance():
         if w.get("is_floating") or w.get("workspace_id") is None:
             continue
         pos = (w.get("layout") or {}).get("pos_in_scrolling_layout")
-        per_ws.setdefault(w["workspace_id"], {}).setdefault(pos[0] if pos else ("w", w["id"]), w["id"])
+        if not pos:
+            continue
+        per_ws.setdefault(w["workspace_id"], {}).setdefault(pos[0], w["id"])   # one id per column
+    for ws in list(last):
+        if ws not in per_ws:
+            del last[ws]                         # workspace emptied: reset its memory
     for ws, cols in per_ws.items():
         n = len(cols)
         if last.get(ws) == n:
             continue
         last[ws] = n
-        if not 1 <= n <= 3:
-            continue
-        width = {1: "100%", 2: "50%", 3: "33.333%"}[n]
-        for wid in cols.values():
-            subprocess.run(["niri", "msg", "action", "set-window-width", "--id", str(wid), width],
-                           capture_output=True)
+        ordered = [cols[k] for k in sorted(cols)]
+        for i, wid in enumerate(ordered):
+            alone = (i == n - 1) and (n % 2 == 1)   # unpaired last column
+            set_width(wid, "100%" if alone else "50%")
 
 rebalance()
 proc = subprocess.Popen(["niri", "msg", "--json", "event-stream"], stdout=subprocess.PIPE, text=True)
 for line in proc.stdout:
-    if line.startswith('{"WindowOpenedOrChanged') or line.startswith('{"WindowClosed') or '"WindowsChanged' in line[:20]:
+    if line.startswith(('{"WindowOpenedOrChanged', '{"WindowClosed', '{"WindowsChanged', '{"WindowLayoutsChanged')):
         rebalance()
