@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# s10-repair — one command that fixes every known S10 problem. Safe to run any time.
+#   s10-repair          check + fix everything
+# Works without Claude. Read the output: ✓ fixed/healthy, ✗ needs a human.
+ok()  { printf '  \e[32m✓\e[0m %s\n' "$*"; }
+bad() { printf '  \e[31m✗\e[0m %s\n' "$*"; FAIL=1; }
+FAIL=0
+echo "S10 repair — $(date '+%d %b %H:%M')"; sudo -v || exit 1
+
+echo "Boot"
+sudo /usr/local/sbin/esp-guard 2>&1 | sed 's/^/  /'
+for f in /boot/loader/entries/2026-06-14_07-47-54_linux.conf /boot/loader/entries/2026-06-14_07-47-54_linux-lts.conf; do
+  sudo test -s "$f" && ok "$(basename "$f") present" || bad "$(basename "$f") missing — run: sudo cp /root/esp-backup/*.conf /boot/loader/entries/"
+done
+[ "$(efibootmgr | sed -n 's/^BootOrder: //p' | cut -c1-4)" = "$(efibootmgr | grep -i 'Linux Boot Manager' | grep -vi fallback | head -1 | cut -c5-8)" ] \
+  && ok "Linux first in boot order" || bad "boot order — esp-guard could not fix"
+grep -q mem_sleep_default=deep /proc/cmdline && ok "deep sleep active" || bad "deep sleep not active (reboot pending?)"
+
+echo "Python"
+/usr/bin/python3 -c 'import gi, cairo, evdev' 2>/dev/null && ok "system python modules" || {
+  sudo pacman -S --needed --noconfirm python-gobject python-cairo python-evdev gtk4-layer-shell >/dev/null && ok "python modules reinstalled" || bad "python modules"; }
+for f in s10-dash s10-eyes s10-clockd s10-dash-input niri-autosplit; do sed -i '1s|^#!.*python.*$|#!/usr/bin/python3|' ~/.local/bin/$f; done
+case "$(command -v python3)" in /usr/bin/python3) ok "python3 is system python";; *) bad "python3 is $(command -v python3) — a venv is in PATH (check config.fish / fish_user_paths)";; esac
+
+echo "Desktop services"
+systemctl --user daemon-reload; systemctl --user reset-failed 2>/dev/null
+for s in s10-dash s10-dash-input s10-eyes; do
+  systemctl --user is-active -q $s || systemctl --user restart $s; sleep 0.5
+  systemctl --user is-active -q $s && ok "$s" || bad "$s — journalctl --user -u $s -n 20"
+done
+for p in waybar swww-daemon swaync swayosd-server; do
+  pgrep -x $p >/dev/null || { setsid -f $p >/dev/null 2>&1; sleep 0.5; }
+  pgrep -x $p >/dev/null && ok "$p" || bad "$p not running"
+done
+pgrep -f niri-autosplit >/dev/null || setsid -f ~/.local/bin/niri-autosplit
+pgrep -f niri-autosplit >/dev/null && ok "niri-autosplit" || bad "niri-autosplit"
+pgrep -x ghostty >/dev/null || setsid -f ghostty --initial-window=false >/dev/null 2>&1; ok "ghostty resident"
+niri validate >/dev/null 2>&1 && ok "niri config valid" || bad "niri config invalid — run: niri validate"
+
+echo "System"
+[ -z "$(systemctl --failed --no-legend)" ] && ok "no failed system units" || { systemctl --failed --no-legend | sed 's/^/    /'; bad "failed system units"; }
+[ -z "$(systemctl --user --failed --no-legend)" ] && ok "no failed user units" || { systemctl --user --failed --no-legend | sed 's/^/    /'; bad "failed user units"; }
+use=$(df --output=pcent / | tail -1 | tr -dc 0-9); [ "$use" -lt 85 ] && ok "root disk ${use}%" || bad "root disk ${use}% — run: sudo paccache -rk1"
+bootuse=$(df --output=pcent /boot | tail -1 | tr -dc 0-9); [ "$bootuse" -lt 85 ] && ok "/boot ${bootuse}%" || bad "/boot ${bootuse}% full"
+pacman -Qdtq >/dev/null 2>&1 && bad "orphan packages: $(pacman -Qdtq | tr '\n' ' ')" || ok "no orphan packages"
+[ -z "$(find /etc -name '*.pacnew' 2>/dev/null)" ] && ok "no .pacnew files" || bad "pacnew files: $(find /etc -name '*.pacnew' | tr '\n' ' ')"
+sudo smartctl -H /dev/nvme0n1 2>/dev/null | grep -q PASSED && ok "SSD health" || bad "SSD health — check: sudo smartctl -a /dev/nvme0n1"
+
+echo "Housekeeping"
+rm -rf ~/.cache/thumbnails ~/.local/bin/__pycache__ /tmp/s10-cur.png 2>/dev/null
+find ~/.cache/s10 -type f -atime +30 -delete 2>/dev/null
+sudo journalctl --vacuum-size=200M >/dev/null 2>&1; ok "caches trimmed"
+
+echo; [ $FAIL = 0 ] && echo "All healthy." || echo "Some items need attention (✗ above)."

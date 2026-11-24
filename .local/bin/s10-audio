@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# s10-audio — glass audio menu: pick output/input device, mute toggles.
+THEME="$HOME/.config/rofi/menu.rasi"
+esc() { sed 's/&/\&amp;/g; s/</\&lt;/g'; }
+list() {  # $1 = sinks|sources -> "name<TAB>description" (no monitors)
+  pactl -f json list "$1" 2>/dev/null | python3 -c '
+import json, sys
+for d in json.load(sys.stdin):
+    if d.get("monitor_of_sink") not in (None, "n/a") or d["name"].endswith(".monitor"): continue
+    print(d["name"] + "\t" + d.get("description", d["name"]))'
+}
+if [ -n "$ROFI_RETV" ]; then
+  printf '\0prompt\x1f󰕾\n\0markup-rows\x1ftrue\n\0no-custom\x1ftrue\n'
+  case "$ROFI_INFO" in
+    __mute) pactl set-sink-mute @DEFAULT_SINK@ toggle ;;
+    __micmute) pactl set-source-mute @DEFAULT_SOURCE@ toggle ;;
+    sink:*) s=${ROFI_INFO#sink:}; pactl set-default-sink "$s"
+            for i in $(pactl list short sink-inputs | cut -f1); do pactl move-sink-input "$i" "$s"; done ;;
+    source:*) pactl set-default-source "${ROFI_INFO#source:}" ;;
+  esac
+  ds=$(pactl get-default-sink); dm=$(pactl get-default-source)
+  vol=$(pactl get-sink-volume @DEFAULT_SINK@ | grep -o '[0-9]*%' | head -1)
+  muted=$(pactl get-sink-mute @DEFAULT_SINK@ | awk '{print $2}')
+  mmuted=$(pactl get-source-mute @DEFAULT_SOURCE@ | awk '{print $2}')
+  printf '\0message\x1fVolume %s%s · scroll the bar to adjust\n' "$vol" "$([ "$muted" = yes ] && echo ' (muted)')"
+  [ "$muted" = yes ] && printf '󰕾   Unmute speakers\0info\x1f__mute\n' || printf '󰖁   Mute speakers\0info\x1f__mute\n'
+  [ "$mmuted" = yes ] && printf '󰍬   Unmute microphone\0info\x1f__micmute\n' || printf '󰍭   Mute microphone\0info\x1f__micmute\n'
+  while IFS=$'\t' read -r n d; do
+    d=$(printf '%s' "$d" | esc)
+    [ "$n" = "$ds" ] && printf '󰓃   <b>%s</b>   <span alpha="55%%">output</span>\0info\x1fsink:%s\n' "$d" "$n" \
+                     || printf '󰓃   %s   <span alpha="40%%">output</span>\0info\x1fsink:%s\n' "$d" "$n"
+  done < <(list sinks)
+  while IFS=$'\t' read -r n d; do
+    d=$(printf '%s' "$d" | esc)
+    [ "$n" = "$dm" ] && printf '󰍬   <b>%s</b>   <span alpha="55%%">input</span>\0info\x1fsource:%s\n' "$d" "$n" \
+                     || printf '󰍬   %s   <span alpha="40%%">input</span>\0info\x1fsource:%s\n' "$d" "$n"
+  done < <(list sources)
+  exit 0
+fi
+pkill -f 'rofi -show audio' && exit 0
+pkill -f 'rofi -show (wifi|bt)'
+exec rofi -show audio -modes "audio:$0" -theme "$THEME" -theme-str 'entry { placeholder: "Search devices"; }' \
+  -hover-select -me-select-entry MouseSecondary -me-accept-entry MousePrimary -click-to-exit -kb-cancel "Escape,Super_L"

@@ -2,7 +2,7 @@
 # s10-wifi — glass Wi-Fi menu (rofi script mode).
 #   s10-wifi               open / close the menu (toggle)
 #   s10-wifi --connect SSID   password prompt + connect (used internally)
-THEME="$HOME/.config/rofi/wifi.rasi"
+THEME="$HOME/.config/rofi/menu.rasi"
 notify() { notify-send -a "Wi-Fi" -h string:x-canonical-private-synchronous:s10wifi "$@"; }
 
 bars() { # signal % -> glyph
@@ -89,6 +89,6 @@ fi
 case "$1" in
   --connect) shift; connect "$1"; exit ;;
 esac
-pkill -f 'rofi.*wifi.rasi' && exit 0                      # toggle closed
+pkill -f 'rofi -show wifi' && exit 0                      # toggle closed
 ( nmcli device wifi rescan >/dev/null 2>&1 & )            # refresh list in background
-exec rofi -show wifi -modes "wifi:$0" -theme "$THEME" -kb-cancel "Escape,Super_L"
+pkill -f 'rofi -show (bt|audio)'; exec rofi -show wifi -modes "wifi:$0" -theme "$THEME" -theme-str 'entry { placeholder: "Search networks"; }' -hover-select -me-select-entry MouseSecondary -me-accept-entry MousePrimary -click-to-exit -kb-cancel "Escape,Super_L"

@@ -1,6 +1,7 @@
 [Unit]
 StartLimitIntervalSec=0
 
+
 Description=S10 clock-pill eyes
 PartOf=graphical-session.target
 After=graphical-session.target

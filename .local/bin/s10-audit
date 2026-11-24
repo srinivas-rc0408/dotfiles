@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# s10-audit — read-only full-system audit -> ~/Downloads/s10-audit.txt
+out="$HOME/Downloads/s10-audit.txt"
+sec() { printf '\n===== %s =====\n' "$1"; }
+{
+sec "overview"; uname -r; uptime -p; systemd-analyze 2>&1 | tail -1; free -h | head -2; df -h / /home /boot | tail -3
+sec "boot time: slowest units"; systemd-analyze blame --no-pager 2>/dev/null | head -15
+sec "boot critical chain"; systemd-analyze critical-chain --no-pager 2>/dev/null | head -20
+sec "enabled system services"; systemctl list-unit-files --type=service --state=enabled --no-legend --no-pager | awk '{print $1}'
+sec "enabled user services"; systemctl --user list-unit-files --state=enabled --no-legend --no-pager | awk '{print $1}'
+sec "timers"; systemctl list-timers --all --no-legend --no-pager | awk '{print $NF, $(NF-1)}' | head -20
+sec "niri autostart"; grep -n 'spawn-at-startup' ~/.config/niri/config.kdl
+sec "xdg autostart"; ls /etc/xdg/autostart ~/.config/autostart 2>/dev/null
+sec "running: top memory"; ps -eo rss,comm --sort=-rss | head -20 | awk 'NR==1{print;next}{printf "%7.0f MB  %s\n", $1/1024, $2}'
+sec "running: top cpu"; ps -eo pcpu,comm --sort=-pcpu | head -12
+sec "temps"; sensors 2>/dev/null | grep -E 'Package|Core 0|edge|fan|temp1' | head -8
+sec "packages"; echo "total: $(pacman -Q | wc -l)  explicit: $(pacman -Qe | wc -l)  foreign(AUR): $(pacman -Qm | wc -l)"; echo "orphans:"; pacman -Qdtq 2>/dev/null
+sec "kernels installed"; pacman -Q linux linux-lts linux-headers linux-lts-headers 2>/dev/null
+sec "big packages (top 25)"; expac -H M '%m\t%n' 2>/dev/null | sort -h -r | head -25 || pacman -Qi | awk '/^Name/{n=$3}/^Installed Size/{print $4$5"\t"n}' | sort -h -r | head -25
+sec "pacman cache"; du -sh /var/cache/pacman/pkg 2>/dev/null; ls /var/cache/pacman/pkg | wc -l
+sec "journal"; journalctl --disk-usage 2>/dev/null
+sec "coredumps"; du -sh /var/lib/systemd/coredump 2>/dev/null; coredumpctl list --no-pager 2>/dev/null | tail -8
+sec "home: biggest dirs"; du -xhd1 ~ 2>/dev/null | sort -h -r | head -20
+sec "home: biggest hidden caches"; du -sh ~/.cache ~/.cache/* ~/.local/share/* ~/.npm ~/.bun ~/.cargo ~/.rustup ~/.gradle ~/.m2 ~/.conda ~/miniconda3 ~/anaconda3 ~/.ollama ~/.var/app ~/.local/share/Steam 2>/dev/null | sort -h -r | head -30
+sec "Downloads (largest 25)"; find ~/Downloads -maxdepth 2 -type f -printf '%s\t%TY-%Tm-%Td\t%p\n' 2>/dev/null | sort -n -r | head -25 | awk -F'\t' '{printf "%7.1f MB  %s  %s\n", $1/1048576, $2, $3}'
+sec "Downloads total"; du -sh ~/Downloads
+sec "trash"; du -sh ~/.local/share/Trash 2>/dev/null
+sec "docker"; command -v docker >/dev/null && sudo -n docker system df 2>/dev/null; systemctl is-enabled docker.service docker.socket 2>&1
+sec "flatpak"; flatpak list --app --columns=application,size 2>/dev/null; flatpak list --unused 2>/dev/null | head
+sec "broken symlinks in home config"; find ~/.config ~/.local -xtype l 2>/dev/null | head -20
+sec "stale backups"; find ~/.config ~/.local/bin /etc -maxdepth 3 \( -name '*.bak' -o -name '*.new' -o -name '*.pacnew' -o -name '*.pacsave' -o -name '*.orig' \) 2>/dev/null
+sec "errors this boot (unique)"; journalctl -b 0 -p err --no-pager -o cat 2>/dev/null | grep -v 'UFW BLOCK' | sed 's/[0-9a-fx]\{6,\}/#/g' | sort | uniq -c | sort -rn | head -25
+sec "warnings this boot (top)"; journalctl -b 0 -p warning --no-pager -o cat 2>/dev/null | grep -v 'UFW BLOCK' | sed 's/[0-9a-fx]\{6,\}/#/g' | sort | uniq -c | sort -rn | head -20
+sec "failed units"; systemctl --failed --no-legend; systemctl --user --failed --no-legend
+sec "smart"; sudo -n smartctl -H /dev/nvme0n1 2>/dev/null | tail -2; sudo -n nvme smart-log /dev/nvme0n1 2>/dev/null | grep -E 'percentage_used|media_errors|critical_warning'
+sec "swap/zram"; swapon --show; cat /proc/sys/vm/swappiness
+sec "fstrim"; systemctl is-enabled fstrim.timer 2>&1
+} > "$out" 2>&1
+echo "audit written: $out ($(wc -l < "$out") lines)"

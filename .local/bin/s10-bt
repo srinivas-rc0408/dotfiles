@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# s10-bt — glass Bluetooth menu (rofi script mode). Click a device: connect / disconnect / pair.
+THEME="$HOME/.config/rofi/menu.rasi"
+notify() { notify-send -a "Bluetooth" -h string:x-canonical-private-synchronous:s10bt "$@"; }
+icon() { case "$1" in
+  audio-head*|audio-card) printf '󰋋';; input-mouse) printf '󰍽';; input-keyboard) printf '󰌌';;
+  input-gaming) printf '󰊴';; phone) printf '󰏲';; computer) printf '󰟀';; *) printf '󰂯';; esac; }
+
+act() {  # $1 = MAC
+  local mac=$1 info name
+  info=$(bluetoothctl info "$mac"); name=$(sed -n 's/^\s*Alias: //p' <<<"$info")
+  if grep -q 'Connected: yes' <<<"$info"; then
+    bluetoothctl disconnect "$mac" >/dev/null && notify "Disconnected" "$name"; return
+  fi
+  if ! grep -q 'Paired: yes' <<<"$info"; then
+    notify "Pairing…" "$name"
+    bluetoothctl --timeout 15 pair "$mac" >/dev/null 2>&1 || { notify -u critical "Pairing failed" "$name — put it in pairing mode"; return; }
+    bluetoothctl trust "$mac" >/dev/null
+  fi
+  notify "Connecting…" "$name"
+  if bluetoothctl --timeout 10 connect "$mac" | grep -q 'Connection successful'; then
+    notify "Connected" "$name"
+  else
+    notify -u critical "Couldn't connect" "$name"
+  fi
+}
+
+if [ -n "$ROFI_RETV" ]; then
+  printf '\0prompt\x1f󰂯\n\0markup-rows\x1ftrue\n\0no-custom\x1ftrue\n'
+  case "$ROFI_INFO" in
+    __scan) bluetoothctl --timeout 6 scan on >/dev/null 2>&1 ;;
+    __toggle)
+      if bluetoothctl show | grep -q 'Powered: yes'; then bluetoothctl power off >/dev/null
+      else rfkill unblock bluetooth; bluetoothctl power on >/dev/null; sleep 1; fi ;;
+    ""|__none) ;;
+    *) setsid -f "$0" --act "$ROFI_INFO" >/dev/null 2>&1; exit 0 ;;
+  esac
+  if ! bluetoothctl show | grep -q 'Powered: yes'; then
+    printf '\0message\x1fBluetooth is off\n'
+    printf '󰂯   <b>Turn Bluetooth on</b>\0info\x1f__toggle\n'; exit 0
+  fi
+  printf '󰑐   Scan for devices\0info\x1f__scan\n'
+  printf '󰂲   Turn Bluetooth off\0info\x1f__toggle\n'
+  n=0
+  while read -r _ mac name; do
+    [ -n "$mac" ] || continue
+    info=$(bluetoothctl info "$mac")
+    ic=$(icon "$(sed -n 's/^\s*Icon: //p' <<<"$info")")
+    bat=$(sed -n 's/.*Battery Percentage: .*(\([0-9]*\)).*/\1/p' <<<"$info")
+    name=$(printf '%s' "$name" | sed 's/&/\&amp;/g; s/</\&lt;/g')
+    extra=""; [ -n "$bat" ] && extra="  <span alpha='55%'>󰁹 ${bat}%</span>"
+    if grep -q 'Connected: yes' <<<"$info"; then
+      printf '%s   <b>%s</b>%s   <span alpha="55%%">connected</span>\0info\x1f%s\x1fmeta\x1f%s\n' "$ic" "$name" "$extra" "$mac" "$name"
+    elif grep -q 'Paired: yes' <<<"$info"; then
+      printf '%s   %s%s   <span alpha="40%%">paired</span>\0info\x1f%s\x1fmeta\x1f%s\n' "$ic" "$name" "$extra" "$mac" "$name"
+    else
+      printf '%s   <span alpha="70%%">%s</span>   <span alpha="40%%">new</span>\0info\x1f%s\x1fmeta\x1f%s\n' "$ic" "$name" "$mac" "$name"
+    fi
+    n=$((n+1))
+  done < <(bluetoothctl devices | sort -k3)
+  [ "$n" = 0 ] && printf '\0message\x1fNo devices yet — scan to find some\n'
+  exit 0
+fi
+
+case "$1" in --act) act "$2"; exit ;; esac
+pkill -f 'rofi -show bt' && exit 0
+pkill -f 'rofi -show (wifi|audio)'
+exec rofi -show bt -modes "bt:$0" -theme "$THEME" -theme-str 'entry { placeholder: "Search devices"; }' \
+  -hover-select -me-select-entry MouseSecondary -me-accept-entry MousePrimary -click-to-exit -kb-cancel "Escape,Super_L"
