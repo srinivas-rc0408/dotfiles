@@ -87,12 +87,14 @@ def track():
                             ptr["t"] = time.monotonic()
             except OSError:
                 devs.pop(fd, None)
+        time.sleep(0.008)        # batch 1000 Hz mice into ~120 updates/s
 
 threading.Thread(target=track, daemon=True).start()
 
 # ---- drawing: minimal "robot" eyes -------------------------------------------
 EW, EH, ER, GAP = 10.0, 15.0, 4.6, 9.5      # eye width/height/corner radius, half-gap
 BOOT = time.monotonic()
+MODE = {"v": "clock"}
 
 def rrect(cr, x, y, w, h, r):
     r = min(r, w / 2, h / 2)
@@ -126,10 +128,7 @@ class Eyes:
             self.blink_t = now
         with lk:
             px, py = ptr["x"], ptr["y"]
-        try:
-            clock_mode = open("/tmp/s10-clock-mode").read().strip()
-        except OSError:
-            clock_mode = "clock"
+        clock_mode = MODE["v"]
         # the clock daemon owns the decision, so eyes and text never overlap
         target = 1.0 if (in_intro or clock_mode == "eye") else 0.0
         self.vis += (target - self.vis) * (0.16 if target else 0.22)
@@ -212,11 +211,26 @@ def on_activate(app):
         if surf: surf.set_input_region(cairo.Region())
     win.connect("realize", passthrough)
 
+    running = {"id": 0}
     def tick(widget, clock):
-        if eyes.step(time.monotonic()):
+        alive = eyes.step(time.monotonic())
+        if alive:
             area.queue_draw()
+            return GLib.SOURCE_CONTINUE
+        area.queue_draw()
+        running["id"] = 0                  # fully hidden: stop the frame clock (0% CPU)
+        return GLib.SOURCE_REMOVE
+    def watch():                           # 10 Hz, cheap: wake the frame clock when needed
+        try:
+            MODE["v"] = open("/tmp/s10-clock-mode").read().strip()
+        except OSError:
+            MODE["v"] = "clock"
+        need = MODE["v"] == "eye" or eyes.vis > 0 or time.monotonic() - BOOT < 2.8
+        if need and not running["id"]:
+            running["id"] = area.add_tick_callback(tick)
         return GLib.SOURCE_CONTINUE
-    area.add_tick_callback(tick)
+    GLib.timeout_add(100, watch)
+    watch()
     win.present()
     passthrough()
 

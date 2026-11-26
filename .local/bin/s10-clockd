@@ -99,6 +99,7 @@ def input_thread():
                 fdmap.pop(fd, None)
         if not fdmap:
             return
+        time.sleep(0.05)         # 20 checks/s is plenty for idle detection
 
 # ---------------------------------------------------------------- signals --
 def on_click(*_):
