@@ -14,6 +14,7 @@
     "custom/clock"
   ],
   "modules-right": [
+    "custom/awake",
     "mpris",
     "cpu",
     "memory",
@@ -133,6 +134,14 @@
     "max-length": 22,
     "on-click": "~/.local/bin/s10-bt",
     "on-click-right": "blueman-manager"
+  },
+  "custom/awake": {
+    "exec": "~/.local/bin/s10-awake --waybar",
+    "return-type": "json",
+    "interval": 30,
+    "signal": 9,
+    "on-click": "~/.local/bin/s10-awake",
+    "tooltip": true
   },
   "tray": {
     "spacing": 8

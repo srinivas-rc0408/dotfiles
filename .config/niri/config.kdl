@@ -279,7 +279,7 @@ spawn-at-startup "~/.local/bin/s10-vwall"
 // nm-applet replaced by s10-wifi
 spawn-at-startup "/usr/lib/polkit-kde-authentication-agent-1"
 spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
-spawn-at-startup "swayidle" "-w" "timeout" "600" "pidof hyprlock || hyprlock" "before-sleep" "pidof hyprlock || hyprlock"
+spawn-at-startup "swayidle" "-w" "timeout" "600" "pidof hyprlock || hyprlock" "before-sleep" "pidof hyprlock || hyprlock"  // s10-awake pauses this
 // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:
 // spawn-sh-at-startup "qs -c ~/source/qs/MyAwesomeShell"
 
@@ -425,6 +425,7 @@ binds {
     Mod+Right hotkey-overlay-title=null { focus-column-right; }
     Mod+Up    hotkey-overlay-title=null { focus-window-or-workspace-up; }
     Mod+Down  hotkey-overlay-title=null { focus-window-or-workspace-down; }
+    Mod+Ctrl+Z hotkey-overlay-title="Stay awake on/off" { spawn "~/.local/bin/s10-awake"; }
     Mod+Shift+A hotkey-overlay-title="Move window left" { move-column-left; }
     Mod+Shift+D hotkey-overlay-title="Move window right" { move-column-right; }
     Mod+Shift+W hotkey-overlay-title="Move window up" { move-window-up-or-to-workspace-up; }

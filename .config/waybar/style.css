@@ -1,14 +1,14 @@
 * { font-family: "JetBrainsMono Nerd Font"; font-size: 13px; border: none; min-height: 0; }
 window#waybar { background: transparent; color: #e8e8e8; }
 .modules-left, .modules-center, .modules-right {
-  background: rgba(20,18,45,0.82);
-  border: 1px solid rgba(245,230,168,0.25);
+  background: rgba(14, 14, 18, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 14px;
   padding: 0 6px;
 }
 #workspaces button { color: #e8e8e8; padding: 0 8px; border-radius: 10px; transition: all 0.25s ease; }
-#workspaces button.active { color: #e8e8e8; background: #f5e6a8; }
-#workspaces button:hover { background: rgba(245,230,168,0.2); }
+#workspaces button.active { color: #0c0c0e; background: #ffffff; }
+#workspaces button:hover { background: rgba(255,255,255,0.14); }
 #window { color: #e8e8e8; padding: 0 10px; }
 #mpris { color: #e8e8e8; padding: 0 10px; }
 #cpu { color: #e8e8e8; padding: 0 8px; }
@@ -20,7 +20,7 @@ window#waybar { background: transparent; color: #e8e8e8; }
 #battery.warning { color: #e8e8e8; }
 #battery.critical { color: #e8e8e8; }
 #tray { padding: 0 8px; }
-tooltip { background: #14122d; border: 1px solid #f5e6a8; border-radius: 10px; }
+
 
 #cava { color: #e8e8e8; padding: 0 8px; }
 #custom-notify { color: #e8e8e8; padding: 0 10px; }
@@ -66,3 +66,21 @@ tooltip label {
 #custom-clock.fade { color: transparent; transition: color 450ms cubic-bezier(0.4, 0, 1, 1); }
 
 #custom-clock.eye { padding: 0 10px; }
+
+/* subtle, consistent hover on every module */
+#mpris, #cpu, #memory, #temperature, #backlight, #pulseaudio, #network, #battery,
+#custom-profile, #custom-notify, #custom-power, #window {
+  border-radius: 999px;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+#mpris:hover, #pulseaudio:hover, #network:hover, #backlight:hover,
+#custom-notify:hover, #custom-power:hover { background-color: rgba(255, 255, 255, 0.10); }
+
+#bluetooth { padding: 0 10px; border-radius: 999px; transition: background-color 180ms ease, color 180ms ease; }
+#bluetooth:hover { background-color: rgba(255, 255, 255, 0.10); }
+#bluetooth.off, #bluetooth.disabled { color: rgba(255, 255, 255, 0.45); }
+
+#custom-awake { padding: 0 10px; border-radius: 999px; color: rgba(255,255,255,0.45);
+  transition: background-color 180ms ease, color 180ms ease; }
+#custom-awake:hover { background-color: rgba(255,255,255,0.10); }
+#custom-awake.on { color: #ffd479; background-color: rgba(255, 212, 121, 0.14); }
