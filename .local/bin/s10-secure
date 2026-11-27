@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# s10-secure — one-time security hardening for S10. Safe to re-run; prints what it did.
+ok()  { printf '  \e[32m✓\e[0m %s\n' "$*"; }
+note(){ printf '  \e[33m•\e[0m %s\n' "$*"; }
+echo "S10 security"; sudo -v || exit 1
+
+echo "Firewall"
+sudo pacman -S --needed --noconfirm ufw arch-audit >/dev/null 2>&1
+sudo ufw --force default deny incoming >/dev/null; sudo ufw --force default allow outgoing >/dev/null
+sudo ufw logging low >/dev/null; sudo ufw --force enable >/dev/null
+sudo systemctl enable --now ufw >/dev/null 2>&1
+ok "ufw on: all incoming blocked, outgoing allowed (games/updates/browsing unaffected)"
+
+echo "Network services"
+for s in sshd avahi-daemon avahi-daemon.socket cups-browsed telnet.socket rpcbind; do
+  if systemctl is-enabled -q $s 2>/dev/null; then sudo systemctl disable --now $s >/dev/null 2>&1; ok "disabled $s"; fi
+done
+ok "no remote-login or network-discovery services"
+echo "    listening to the outside world:"
+ss -H -tulpn 2>/dev/null | awk '$5 !~ /^(127\.|\[::1\]|::1|\[?fe80)/ {print "      "$1, $5}' | sort -u | head -15
+ss -H -tulpn 2>/dev/null | awk '$5 !~ /^(127\.|\[::1\]|::1|\[?fe80)/' | grep -q . || echo "      (nothing — only local services)"
+
+echo "Kernel hardening"
+sudo tee /etc/sysctl.d/90-s10-hardening.conf >/dev/null <<'SYS'
+# S10 hardening — safe for desktop, Docker, games via Proton
+kernel.kptr_restrict = 2
+kernel.dmesg_restrict = 1
+kernel.unprivileged_bpf_disabled = 1
+net.core.bpf_jit_harden = 2
+kernel.kexec_load_disabled = 1
+kernel.sysrq = 176
+fs.protected_fifos = 2
+fs.protected_regular = 2
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv6.conf.all.accept_source_route = 0
+net.ipv4.tcp_syncookies = 1
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.tcp_rfc1337 = 1
+SYS
+sudo sysctl --system >/dev/null 2>&1 && ok "kernel hardening active (dmesg now needs sudo)"
+
+echo "Boot guard"
+sudo chmod 700 /root/esp-backup; sudo chmod 600 /root/esp-backup/* 2>/dev/null
+sudo chown root:root /usr/local/sbin/esp-guard; sudo chmod 755 /usr/local/sbin/esp-guard
+sudo sha256sum /usr/local/sbin/esp-guard | sudo tee /root/esp-backup/.guard.sha256 >/dev/null
+ok "backups root-only; guard owned by root; checksum recorded"
+findmnt -no OPTIONS /boot | grep -q 'fmask=0077' && ok "/boot readable by root only" || note "/boot still world-readable (reboot applies fstab fix)"
+
+echo "Accounts & lock"
+[ "$(sudo passwd -S root 2>/dev/null | awk '{print $2}')" = L ] && ok "root login locked (use sudo)" || { sudo passwd -l root >/dev/null && ok "root login locked (use sudo)"; }
+grep -q 'timeout 600' ~/.config/niri/config.kdl && ok "auto-lock after 10 min idle + lock before sleep"
+
+echo "Updates & vulnerabilities"
+sudo pacman -S --needed --noconfirm fwupd >/dev/null 2>&1
+n=$(arch-audit -u 2>/dev/null | wc -l)
+[ "$n" = 0 ] && ok "no known-vulnerable packages with fixes pending" || note "$n vulnerable packages have fixes — run your update (success)"
+fwupdmgr get-updates --no-unreported-check -y 2>/dev/null | grep -qi 'no updat' && ok "firmware up to date" || note "check firmware: fwupdmgr get-updates"
+
+echo "Leftovers removed"
+systemctl is-enabled -q warp-svc 2>/dev/null && sudo systemctl disable --now warp-svc >/dev/null && ok "WARP off on Linux"
+sudo rm -f /etc/fstab.s10bak /etc/mkinitcpio.conf.bak ~/.config/niri/*.bak 2>/dev/null; ok "stale backups cleared"
+echo; echo "Done. Re-run any time: s10-secure"

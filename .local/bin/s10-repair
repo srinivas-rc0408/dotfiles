@@ -46,6 +46,12 @@ pacman -Qdtq >/dev/null 2>&1 && bad "orphan packages: $(pacman -Qdtq | tr '\n' '
 [ -z "$(find /etc -name '*.pacnew' 2>/dev/null)" ] && ok "no .pacnew files" || bad "pacnew files: $(find /etc -name '*.pacnew' | tr '\n' ' ')"
 sudo smartctl -H /dev/nvme0n1 2>/dev/null | grep -q PASSED && ok "SSD health" || bad "SSD health — check: sudo smartctl -a /dev/nvme0n1"
 
+echo "Security"
+systemctl is-active -q ufw && ok "firewall on" || { sudo ufw --force enable >/dev/null && ok "firewall re-enabled"; }
+[ -f /etc/sysctl.d/90-s10-hardening.conf ] && ok "kernel hardening" || bad "kernel hardening missing — run: s10-secure"
+command -v arch-audit >/dev/null && { n=$(arch-audit -u 2>/dev/null | wc -l); [ "$n" = 0 ] && ok "no vulnerable packages pending" || bad "$n vulnerable packages — run your update"; }
+sudo sha256sum -c /root/esp-backup/.guard.sha256 >/dev/null 2>&1 && ok "boot guard untampered" || bad "boot guard changed — reinstall: s10-harden"
+
 echo "Housekeeping"
 rm -rf ~/.cache/thumbnails ~/.local/bin/__pycache__ /tmp/s10-cur.png 2>/dev/null
 find ~/.cache/s10 -type f -atime +30 -delete 2>/dev/null
