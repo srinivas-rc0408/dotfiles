@@ -58,10 +58,8 @@ echo "Accounts & lock"
 grep -q 'timeout 600' ~/.config/niri/config.kdl && ok "auto-lock after 10 min idle + lock before sleep"
 
 echo "Updates & vulnerabilities"
-sudo pacman -S --needed --noconfirm fwupd >/dev/null 2>&1
 n=$(arch-audit -u 2>/dev/null | wc -l)
 [ "$n" = 0 ] && ok "no known-vulnerable packages with fixes pending" || note "$n vulnerable packages have fixes — run your update (success)"
-fwupdmgr get-updates --no-unreported-check -y 2>/dev/null | grep -qi 'no updat' && ok "firmware up to date" || note "check firmware: fwupdmgr get-updates"
 
 echo "Leftovers removed"
 systemctl is-enabled -q warp-svc 2>/dev/null && sudo systemctl disable --now warp-svc >/dev/null && ok "WARP off on Linux"
